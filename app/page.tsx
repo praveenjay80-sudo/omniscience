@@ -1,0 +1,499 @@
+"use client";
+
+import { useState, useEffect, useCallback, useRef } from "react";
+import { TAXONOMY_SEED } from "@/lib/taxonomy-seed";
+import { VerifyStatus, verifyAll } from "@/lib/wikipedia";
+import SearchLinks from "@/components/SearchLinks";
+import ExplainModal from "@/components/ExplainModal";
+import VerifyBadge from "@/components/VerifyBadge";
+
+type Phase = "pick-domain" | "pick-l1" | "pick-l2" | "view-l3";
+
+interface ExplainTarget {
+  term: string;
+  l2?: string;
+}
+
+function cacheKey(domain: string, l1: string, l2?: string) {
+  return l2
+    ? `omni_l3::${domain}::${l1}::${l2}`
+    : `omni_l2::${domain}::${l1}`;
+}
+
+async function streamExpand(
+  apiKey: string,
+  domain: string,
+  l1: string,
+  l2: string | undefined,
+  onChunk: (t: string) => void
+): Promise<string[]> {
+  const res = await fetch("/api/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ apiKey, domain, l1, l2 }),
+  });
+  if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let raw = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const chunk = decoder.decode(value, { stream: true });
+    raw += chunk;
+    onChunk(raw);
+    if (raw.includes("__ERROR__:")) throw new Error(raw.split("__ERROR__:")[1].trim());
+  }
+
+  const start = raw.indexOf("[");
+  const end = raw.lastIndexOf("]");
+  if (start === -1 || end === -1) throw new Error("No JSON array in response");
+  return JSON.parse(raw.slice(start, end + 1)) as string[];
+}
+
+export default function Home() {
+  const [apiKey, setApiKey] = useState("");
+  const [showKey, setShowKey] = useState(false);
+  const [phase, setPhase] = useState<Phase>("pick-domain");
+
+  const [selectedDomain, setSelectedDomain] = useState("");
+  const [selectedL1, setSelectedL1] = useState("");
+  const [selectedL2, setSelectedL2] = useState("");
+
+  const [l2List, setL2List] = useState<string[]>([]);
+  const [l3List, setL3List] = useState<string[]>([]);
+
+  const [loading, setLoading] = useState(false);
+  const [loadingText, setLoadingText] = useState("");
+  const [error, setError] = useState("");
+
+  const [explainTarget, setExplainTarget] = useState<ExplainTarget | null>(null);
+
+  // verification state: term → status / url
+  const [verifyMap, setVerifyMap] = useState<Record<string, VerifyStatus>>({});
+  const [verifyUrlMap, setVerifyUrlMap] = useState<Record<string, string>>({});
+  const [verifying, setVerifying] = useState(false);
+
+  // generation counter — incremented on every navigation to cancel stale async expand calls
+  const expandGenRef = useRef(0);
+
+  useEffect(() => {
+    const k = localStorage.getItem("omni_apikey");
+    if (k) setApiKey(k);
+  }, []);
+
+  const saveApiKey = (k: string) => {
+    setApiKey(k);
+    localStorage.setItem("omni_apikey", k);
+  };
+
+  // Load any cached wiki results for a list of terms
+  const loadCachedVerify = useCallback((terms: string[]) => {
+    const statusMap: Record<string, VerifyStatus> = {};
+    const urlMap: Record<string, string> = {};
+    terms.forEach((t) => {
+      const raw = localStorage.getItem(`omni_wiki::${t}`);
+      if (!raw) return;
+      try {
+        const entry = JSON.parse(raw) as { status: VerifyStatus; url: string | null };
+        statusMap[t] = entry.status;
+        if (entry.url) urlMap[t] = entry.url;
+      } catch {
+        statusMap[t] = raw as VerifyStatus;
+      }
+    });
+    setVerifyMap((prev) => ({ ...prev, ...statusMap }));
+    setVerifyUrlMap((prev) => ({ ...prev, ...urlMap }));
+  }, []);
+
+  const expand = useCallback(
+    async (domain: string, l1: string, l2?: string) => {
+      const myGen = ++expandGenRef.current;
+
+      const key = cacheKey(domain, l1, l2);
+      const cached = localStorage.getItem(key);
+      if (cached) {
+        if (expandGenRef.current !== myGen) return; // navigated away
+        const items = JSON.parse(cached) as string[];
+        if (l2) { setL3List(items); loadCachedVerify(items); }
+        else { setL2List(items); loadCachedVerify(items); }
+        return;
+      }
+
+      if (!apiKey) { setError("Enter your API key first."); return; }
+
+      setLoading(true);
+      setError("");
+      setLoadingText("");
+
+      try {
+        const items = await streamExpand(apiKey, domain, l1, l2, (partial) => {
+          if (expandGenRef.current !== myGen) return;
+          const match = partial.match(/\[[\s\S]*/);
+          if (match) setLoadingText(match[0].slice(0, 120) + "…");
+        });
+        if (expandGenRef.current !== myGen) return; // navigated away while generating
+        localStorage.setItem(key, JSON.stringify(items));
+        if (l2) { setL3List(items); loadCachedVerify(items); }
+        else { setL2List(items); loadCachedVerify(items); }
+      } catch (err: unknown) {
+        if (expandGenRef.current !== myGen) return;
+        setError(err instanceof Error ? err.message : "Unknown error");
+      } finally {
+        if (expandGenRef.current === myGen) {
+          setLoading(false);
+          setLoadingText("");
+        }
+      }
+    },
+    [apiKey, loadCachedVerify]
+  );
+
+  const runVerify = async (terms: string[]) => {
+    setVerifying(true);
+    setVerifyMap((prev) => {
+      const next = { ...prev };
+      terms.forEach((t) => { if (!next[t]) next[t] = "checking"; });
+      return next;
+    });
+
+    await verifyAll(terms, (index, status, url) => {
+      setVerifyMap((prev) => ({ ...prev, [terms[index]]: status }));
+      if (url) setVerifyUrlMap((prev) => ({ ...prev, [terms[index]]: url }));
+    });
+
+    setVerifying(false);
+  };
+
+  const resetVerify = () => { setVerifyMap({}); setVerifyUrlMap({}); };
+
+  const pickDomain = (domain: string) => {
+    setSelectedDomain(domain);
+    setSelectedL1(""); setSelectedL2("");
+    setL2List([]); setL3List([]);
+    setError(""); resetVerify();
+    setPhase("pick-l1");
+  };
+
+  const pickL1 = (l1: string) => {
+    expandGenRef.current++;
+    setSelectedL1(l1);
+    setSelectedL2(""); setL2List([]); setL3List([]);
+    setError(""); resetVerify();
+    setLoading(false);
+    setPhase("pick-l2");
+    expand(selectedDomain, l1);
+  };
+
+  const pickL2 = (l2: string) => {
+    expandGenRef.current++;
+    setSelectedL2(l2);
+    setL3List([]);
+    setError(""); resetVerify();
+    setLoading(false);
+    setPhase("view-l3");
+    expand(selectedDomain, selectedL1, l2);
+  };
+
+  const goTo = (p: Phase) => {
+    expandGenRef.current++;
+    setError(""); resetVerify();
+    setLoading(false);
+    setPhase(p);
+    if (p === "pick-domain") {
+      setSelectedDomain(""); setSelectedL1(""); setSelectedL2("");
+      setL2List([]); setL3List([]);
+    }
+    if (p === "pick-l1") {
+      setSelectedL1(""); setSelectedL2("");
+      setL2List([]); setL3List([]);
+    }
+    if (p === "pick-l2") { setSelectedL2(""); setL3List([]); }
+  };
+
+  const seed = TAXONOMY_SEED.find((s) => s.domain === selectedDomain);
+
+  const activeList = phase === "pick-l2" ? l2List : l3List;
+  const unverifiedCount = activeList.filter((t) => !verifyMap[t]).length;
+  const verifiedCount = activeList.filter((t) => verifyMap[t] === "verified").length;
+  const uncertainCount = activeList.filter((t) => verifyMap[t] === "uncertain").length;
+  const unverifiedFailCount = activeList.filter((t) => verifyMap[t] === "unverified").length;
+
+  return (
+    <div className="h-screen bg-gray-950 text-gray-100 flex flex-col overflow-hidden">
+      {/* Header */}
+      <header className="flex items-center justify-between px-6 py-3 border-b border-gray-800 bg-gray-900 flex-shrink-0">
+        <button
+          onClick={() => goTo("pick-domain")}
+          className="text-xl font-bold text-white hover:text-blue-400 transition-colors"
+        >
+          Omniscience
+        </button>
+
+        <nav className="flex items-center gap-1 text-sm text-gray-400 min-w-0 flex-1 mx-6">
+          {selectedDomain && (
+            <>
+              <span className="text-gray-700">/</span>
+              <button onClick={() => goTo("pick-l1")} className="hover:text-gray-200 transition-colors truncate max-w-[160px]">
+                {selectedDomain}
+              </button>
+            </>
+          )}
+          {selectedL1 && (
+            <>
+              <span className="text-gray-700">/</span>
+              <button onClick={() => goTo("pick-l2")} className="hover:text-gray-200 transition-colors truncate max-w-[160px]">
+                {selectedL1}
+              </button>
+            </>
+          )}
+          {selectedL2 && (
+            <>
+              <span className="text-gray-700">/</span>
+              <span className="text-gray-300 truncate max-w-[160px]">{selectedL2}</span>
+            </>
+          )}
+        </nav>
+
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={() => {
+              if (!confirm("Delete all cached taxonomy and Wikipedia results?")) return;
+              const keys = Object.keys(localStorage).filter(
+                (k) => k.startsWith("omni_l2::") || k.startsWith("omni_l3::") || k.startsWith("omni_wiki::")
+              );
+              keys.forEach((k) => localStorage.removeItem(k));
+              goTo("pick-domain");
+            }}
+            className="text-xs bg-red-950 hover:bg-red-900 text-red-400 hover:text-red-300 px-3 py-1.5 rounded-lg border border-red-900 transition-colors"
+            title="Delete all cached taxonomy data"
+          >
+            Reset Cache
+          </button>
+          <input
+            type={showKey ? "text" : "password"}
+            value={apiKey}
+            onChange={(e) => saveApiKey(e.target.value)}
+            placeholder="sk-ant-… API key"
+            className="bg-gray-800 text-xs text-gray-300 placeholder-gray-600 rounded px-3 py-1.5 w-52 outline-none focus:ring-1 focus:ring-blue-500 font-mono"
+          />
+          <button onClick={() => setShowKey((v) => !v)} className="text-xs text-gray-500 hover:text-gray-300">
+            {showKey ? "hide" : "show"}
+          </button>
+        </div>
+      </header>
+
+      <main className="flex-1 overflow-y-auto p-6">
+        {error && (
+          <div className="mb-4 bg-red-950 border border-red-800 text-red-300 rounded-lg px-4 py-3 text-sm">
+            {error}
+          </div>
+        )}
+
+        {loading && (
+          <div className="mb-4 bg-blue-950 border border-blue-800 rounded-lg px-4 py-3 flex items-center gap-3">
+            <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+            <div>
+              <p className="text-blue-300 text-sm">Generating with Claude Opus…</p>
+              {loadingText && <p className="text-blue-500 text-xs mt-0.5 font-mono">{loadingText}</p>}
+            </div>
+          </div>
+        )}
+
+        {/* PHASE: pick-domain */}
+        {phase === "pick-domain" && (
+          <div>
+            <h2 className="text-2xl font-bold text-white mb-1">Select a Domain</h2>
+            <p className="text-gray-500 text-sm mb-6">Claude generates subfields on demand — nothing is preloaded.</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              {TAXONOMY_SEED.map((s) => (
+                <button key={s.domain} onClick={() => pickDomain(s.domain)}
+                  className="bg-gray-900 hover:bg-gray-800 border border-gray-700 hover:border-blue-600 rounded-xl p-4 text-left transition-all group">
+                  <p className="font-semibold text-white group-hover:text-blue-300 transition-colors">{s.domain}</p>
+                  <p className="text-xs text-gray-500 mt-1">{s.l1.length} fields</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* PHASE: pick-l1 */}
+        {phase === "pick-l1" && seed && (
+          <div>
+            <h2 className="text-2xl font-bold text-white mb-1">{selectedDomain}</h2>
+            <p className="text-gray-500 text-sm mb-6">Pick a field — Claude will generate its subfields (L2).</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              {seed.l1.map((l1) => (
+                <button key={l1} onClick={() => pickL1(l1)}
+                  className="bg-gray-900 hover:bg-gray-800 border border-gray-700 hover:border-purple-500 rounded-xl p-4 text-left transition-all group">
+                  <p className="font-semibold text-blue-300 group-hover:text-purple-300 transition-colors">{l1}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* PHASE: pick-l2 */}
+        {phase === "pick-l2" && (
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="text-2xl font-bold text-white">{selectedL1}</h2>
+              {!loading && l2List.length > 0 && (
+                <VerifyToolbar
+                  total={l2List.length}
+                  verifiedCount={verifiedCount}
+                  uncertainCount={uncertainCount}
+                  unverifiedFailCount={unverifiedFailCount}
+                  unverifiedCount={unverifiedCount}
+                  verifying={verifying}
+                  onVerify={() => runVerify(l2List.filter((t) => !verifyMap[t]))}
+                />
+              )}
+            </div>
+            <p className="text-gray-500 text-sm mb-6">Pick a subfield — Claude will generate its topics (L3).</p>
+            {!loading && l2List.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {l2List.map((l2) => (
+                  <div key={l2} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+                    <div className="flex items-start justify-between mb-3">
+                      <button onClick={() => pickL2(l2)} className="text-left group flex-1">
+                        <p className="font-semibold text-purple-300 group-hover:text-green-300 transition-colors">
+                          {l2} →
+                        </p>
+                      </button>
+                      <VerifyBadge status={verifyMap[l2]} url={verifyUrlMap[l2]} />
+                    </div>
+                    <SearchLinks term={l2} />
+                    <button onClick={() => setExplainTarget({ term: l2 })}
+                      className="mt-2 text-xs bg-gray-800 hover:bg-yellow-900 hover:text-yellow-300 text-gray-400 px-3 py-1 rounded-lg transition-colors border border-gray-700 hover:border-yellow-700">
+                      Explain Me
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {!loading && l2List.length === 0 && !error && <p className="text-gray-500">No results yet.</p>}
+          </div>
+        )}
+
+        {/* PHASE: view-l3 */}
+        {phase === "view-l3" && (
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <h2 className="text-2xl font-bold text-white">{selectedL2}</h2>
+              {!loading && l3List.length > 0 && (
+                <VerifyToolbar
+                  total={l3List.length}
+                  verifiedCount={verifiedCount}
+                  uncertainCount={uncertainCount}
+                  unverifiedFailCount={unverifiedFailCount}
+                  unverifiedCount={unverifiedCount}
+                  verifying={verifying}
+                  onVerify={() => runVerify(l3List.filter((t) => !verifyMap[t]))}
+                />
+              )}
+            </div>
+            <p className="text-gray-500 text-sm mb-6">
+              Topics in <span className="text-purple-400">{selectedL1}</span> › <span className="text-blue-400">{selectedDomain}</span>
+            </p>
+            {!loading && l3List.length > 0 && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {l3List.map((l3) => (
+                  <div key={l3} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
+                    <div className="flex items-start justify-between mb-2">
+                      <p className="font-medium text-gray-100 flex-1">{l3}</p>
+                      <VerifyBadge status={verifyMap[l3]} url={verifyUrlMap[l3]} />
+                    </div>
+                    <SearchLinks term={l3} />
+                    <button onClick={() => setExplainTarget({ term: l3, l2: selectedL2 })}
+                      className="mt-2 text-xs bg-gray-800 hover:bg-yellow-900 hover:text-yellow-300 text-gray-400 px-3 py-1 rounded-lg transition-colors border border-gray-700 hover:border-yellow-700">
+                      Explain Me
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {!loading && l3List.length === 0 && !error && <p className="text-gray-500">No results yet.</p>}
+          </div>
+        )}
+      </main>
+
+      {explainTarget && (
+        <ExplainModal
+          term={explainTarget.term}
+          domain={selectedDomain}
+          l1={selectedL1}
+          l2={explainTarget.l2 ?? selectedL2}
+          apiKey={apiKey}
+          onClose={() => setExplainTarget(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Verify toolbar ────────────────────────────────────────────────────────────
+
+interface VerifyToolbarProps {
+  total: number;
+  verifiedCount: number;
+  uncertainCount: number;
+  unverifiedFailCount: number;
+  unverifiedCount: number;
+  verifying: boolean;
+  onVerify: () => void;
+}
+
+function VerifyToolbar({
+  total,
+  verifiedCount,
+  uncertainCount,
+  unverifiedFailCount,
+  unverifiedCount,
+  verifying,
+  onVerify,
+}: VerifyToolbarProps) {
+  const checked = total - unverifiedCount;
+
+  return (
+    <div className="flex items-center gap-3 flex-shrink-0">
+      {checked > 0 && (
+        <div className="flex items-center gap-2 text-xs">
+          {verifiedCount > 0 && (
+            <span className="bg-green-900/60 text-green-300 border border-green-700 px-2 py-0.5 rounded">
+              ✓ {verifiedCount}
+            </span>
+          )}
+          {uncertainCount > 0 && (
+            <span className="bg-yellow-900/60 text-yellow-300 border border-yellow-700 px-2 py-0.5 rounded">
+              ? {uncertainCount}
+            </span>
+          )}
+          {unverifiedFailCount > 0 && (
+            <span className="bg-red-900/60 text-red-400 border border-red-800 px-2 py-0.5 rounded">
+              ✗ {unverifiedFailCount}
+            </span>
+          )}
+        </div>
+      )}
+      <button
+        onClick={onVerify}
+        disabled={verifying || unverifiedCount === 0}
+        className="text-xs bg-gray-800 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed text-gray-300 px-3 py-1.5 rounded-lg border border-gray-700 transition-colors flex items-center gap-1.5"
+      >
+        {verifying ? (
+          <>
+            <span className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin" />
+            Verifying…
+          </>
+        ) : unverifiedCount === 0 ? (
+          "All verified"
+        ) : (
+          `Verify via Wikipedia (${unverifiedCount})`
+        )}
+      </button>
+    </div>
+  );
+}
