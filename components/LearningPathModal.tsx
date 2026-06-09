@@ -51,6 +51,9 @@ export default function LearningPathModal({
   const [prereqError, setPrereqError] = useState<string | null>(null);
 
   const [hoursPerWeek, setHoursPerWeek] = useState(10);
+  const [background, setBackground] = useState("");
+  const [goal, setGoal] = useState("");
+  const [learningStyle, setLearningStyle] = useState("");
   const [planText, setPlanText] = useState("");
   const [planLoading, setPlanLoading] = useState(false);
 
@@ -114,7 +117,8 @@ export default function LearningPathModal({
   }
 
   async function fetchStudyPlan() {
-    const key = `omni_plan::${domain}::${l1}::${l2 ?? ""}::${term}::${hoursPerWeek}`;
+    const profileKey = `${hoursPerWeek}::${background}::${goal}::${learningStyle}`;
+    const key = `omni_plan::${domain}::${l1}::${l2 ?? ""}::${term}::${profileKey}`;
     const cached = localStorage.getItem(key);
     if (cached) {
       setPlanText(cached);
@@ -134,13 +138,8 @@ export default function LearningPathModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          apiKey,
-          term,
-          domain,
-          l1,
-          l2,
-          hoursPerWeek,
-          prerequisites: prereqData?.chain,
+          apiKey, term, domain, l1, l2,
+          hoursPerWeek, background, goal, learningStyle,
         }),
       });
 
@@ -182,14 +181,20 @@ export default function LearningPathModal({
       if (line.startsWith("## "))
         return (
           <h2 key={i} className="text-sm font-bold text-white mt-5 mb-1.5">
-            {line.slice(3)}
+            {inline(line.slice(3))}
           </h2>
         );
       if (line.startsWith("### "))
         return (
           <h3 key={i} className="text-sm font-semibold text-blue-300 mt-3 mb-1">
-            {line.slice(4)}
+            {inline(line.slice(4))}
           </h3>
+        );
+      if (line.startsWith("#### "))
+        return (
+          <h4 key={i} className="text-xs font-semibold text-violet-400 mt-2.5 mb-0.5 uppercase tracking-wide">
+            {line.slice(5)}
+          </h4>
         );
       if (line.startsWith("- "))
         return (
@@ -352,51 +357,130 @@ export default function LearningPathModal({
 
           {/* STUDY PLAN */}
           {tab === "plan" && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <label className="text-gray-400 text-sm whitespace-nowrap">
-                  Hours / week:
-                </label>
-                <input
-                  type="number"
-                  value={hoursPerWeek}
-                  onChange={(e) =>
-                    setHoursPerWeek(
-                      Math.max(1, Math.min(80, Number(e.target.value) || 1))
-                    )
-                  }
-                  className="w-16 bg-gray-800 border border-gray-600 rounded px-2 py-1 text-white text-sm text-center"
-                  min={1}
-                  max={80}
-                />
-                <button
-                  onClick={fetchStudyPlan}
-                  disabled={planLoading}
-                  className="bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-white text-sm px-3 py-1.5 rounded-lg transition-colors"
-                >
-                  {planLoading
-                    ? "Generating…"
-                    : planText
-                    ? "Regenerate"
-                    : "Generate Plan"}
-                </button>
-              </div>
+            <div className="space-y-5">
+              {/* Intake form — always visible so they can change answers */}
+              {!planText && !planLoading && (
+                <div className="space-y-4">
+                  <p className="text-gray-400 text-xs uppercase tracking-widest font-semibold">Your Learning Profile</p>
+
+                  {/* Background */}
+                  <div>
+                    <p className="text-gray-500 text-xs mb-2">Your background with {term}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {["Complete beginner", "Know the basics", "Have some experience"].map((opt) => (
+                        <button
+                          key={opt}
+                          onClick={() => setBackground(opt)}
+                          className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                            background === opt
+                              ? "bg-blue-700 border-blue-600 text-white"
+                              : "border-gray-600 text-gray-400 hover:border-gray-400 hover:text-gray-200"
+                          }`}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Goal */}
+                  <div>
+                    <p className="text-gray-500 text-xs mb-2">My goal</p>
+                    <div className="flex flex-wrap gap-2">
+                      {["Understand it conceptually", "Build job skills", "Academic mastery", "Satisfy curiosity"].map((opt) => (
+                        <button
+                          key={opt}
+                          onClick={() => setGoal(opt)}
+                          className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                            goal === opt
+                              ? "bg-blue-700 border-blue-600 text-white"
+                              : "border-gray-600 text-gray-400 hover:border-gray-400 hover:text-gray-200"
+                          }`}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Hours */}
+                  <div>
+                    <p className="text-gray-500 text-xs mb-2">Hours per week</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {[5, 10, 20, 40].map((h) => (
+                        <button
+                          key={h}
+                          onClick={() => setHoursPerWeek(h)}
+                          className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                            hoursPerWeek === h
+                              ? "bg-blue-700 border-blue-600 text-white"
+                              : "border-gray-600 text-gray-400 hover:border-gray-400 hover:text-gray-200"
+                          }`}
+                        >
+                          {h}h
+                        </button>
+                      ))}
+                      <input
+                        type="number"
+                        value={hoursPerWeek}
+                        onChange={(e) => setHoursPerWeek(Math.max(1, Math.min(80, Number(e.target.value) || 1)))}
+                        className="w-14 bg-gray-800 border border-gray-600 rounded-full px-2 py-1 text-white text-xs text-center"
+                        min={1}
+                        max={80}
+                        placeholder="custom"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Learning style */}
+                  <div>
+                    <p className="text-gray-500 text-xs mb-2">I learn best by</p>
+                    <div className="flex flex-wrap gap-2">
+                      {["Reading books", "Watching videos", "Building things", "Mix of everything"].map((opt) => (
+                        <button
+                          key={opt}
+                          onClick={() => setLearningStyle(opt)}
+                          className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
+                            learningStyle === opt
+                              ? "bg-blue-700 border-blue-600 text-white"
+                              : "border-gray-600 text-gray-400 hover:border-gray-400 hover:text-gray-200"
+                          }`}
+                        >
+                          {opt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={fetchStudyPlan}
+                    disabled={!background || !goal || !learningStyle || !apiKey}
+                    className="w-full bg-blue-700 hover:bg-blue-600 disabled:opacity-40 text-white text-sm py-2.5 rounded-lg transition-colors font-medium"
+                  >
+                    {apiKey ? "Build My Mastermind Plan →" : "Enter API key first"}
+                  </button>
+                </div>
+              )}
 
               {planLoading && !planText && (
-                <div className="flex items-center gap-2 text-gray-400 text-sm">
+                <div className="flex items-center gap-2 text-gray-400 text-sm py-4">
                   <span className="w-4 h-4 border border-gray-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
-                  Crafting your study plan…
+                  Building your personal roadmap…
                 </div>
               )}
 
               {planText && (
-                <div className="space-y-0.5">{renderMarkdown(planText)}</div>
-              )}
-
-              {!planText && !planLoading && (
-                <p className="text-gray-500 text-sm">
-                  Set your hours/week and generate a personalized plan.
-                </p>
+                <div>
+                  <div className="space-y-0.5">{renderMarkdown(planText)}</div>
+                  <div className="mt-4 pt-3 border-t border-gray-800">
+                    <button
+                      onClick={() => { setPlanText(""); }}
+                      className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
+                    >
+                      ← Change my profile
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           )}
