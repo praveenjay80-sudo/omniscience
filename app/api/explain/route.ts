@@ -10,26 +10,37 @@ export async function POST(req: NextRequest) {
 
   const context = [domain, l1, l2].filter(Boolean).join(" › ");
 
-  const prompt = `Explain "${term}" (${context}) to a complete beginner who has never studied this subject.
+  const prompt = `Explain "${term}" (${context}) to someone who has never studied this subject and knows nothing about it.
 
-Structure your response with these sections using markdown bold headers:
+You are the world's best teacher — patient, clear, full of vivid analogies. Assume ZERO prior knowledge. Every technical term you use must be defined in the same sentence. Write like you are talking to a curious 16-year-old who just asked "what even is this?"
 
-**What it is**
-A simple, jargon-free definition in 2-3 sentences. Explain it like the person is 16 years old.
+Use these sections:
 
-**Why it matters**
-Real-world significance — why should anyone care? What problems does it solve or what does it help us understand?
+**What it is — the simple version**
+Start with the simplest possible one-sentence definition. Then build it up using a vivid analogy to everyday life (cooking, music, sports, building things — pick whatever fits best). Explain it from first principles. By the end of this section the reader should be able to say "oh, so it's basically like…" to a friend. Aim for 5-6 sentences.
 
-**Key concepts**
-3-5 core ideas explained simply. Use analogies to everyday things.
+**Why anyone should care**
+Don't assume the reader wants an academic career. Make it personal and real: what problems does this solve? Where does it show up in daily life, in the technology they use, in medicine, in society? Name specific things (apps, buildings, medicines, historical events). 4-5 sentences.
 
-**Concrete examples**
-2-3 specific, real-world examples that anyone can relate to. Be vivid and specific.
+**The core ideas, one by one**
+Pick 4-6 core concepts. For EACH one:
+- A plain-English name (not the technical jargon, or if you must use jargon, define it immediately)
+- A 2-3 sentence explanation a 16-year-old can follow
+- A concrete analogy or real-world example they'd recognize
 
-**A beginner's path**
-2-3 specific book titles or free resources (with authors where known) that a total beginner should start with.
+**Examples that make it stick**
+2-3 vivid, specific real-world examples. Don't say "applications include X" — tell a brief story. "Imagine you are doing X… this is where ${term} comes in because…" Make the reader see it in the real world.
 
-Keep language simple. Immediately explain any technical term you must use. Total length: ~500 words.`;
+**The one thing that trips everyone up**
+The most common confusion or misconception beginners have. State it plainly, then correct it simply. 3-4 sentences.
+
+**Your first steps as a beginner**
+3 specific resources:
+1. A free online course or YouTube series (name it, say who made it, one sentence on why)
+2. A beginner-friendly textbook (title + author, one sentence on why this one)
+3. A popular science / general-audience book on this topic (title + author, one sentence on why)
+
+Write at length. Be thorough. Every sentence must be understandable to someone with no background in this subject. Total length: 800–1100 words.`;
 
   const client = new Anthropic({ apiKey });
   const encoder = new TextEncoder();
@@ -39,7 +50,7 @@ Keep language simple. Immediately explain any technical term you must use. Total
       try {
         const anthropicStream = await client.messages.stream({
           model: "claude-sonnet-4-6",
-          max_tokens: 2048,
+          max_tokens: 4096,
           thinking: { type: "adaptive" },
           messages: [{ role: "user", content: prompt }],
         });
