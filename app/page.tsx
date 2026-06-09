@@ -406,8 +406,42 @@ export default function Home() {
         {/* PHASE: pick-domain */}
         {phase === "pick-domain" && (
           <div>
-            <h2 className="text-2xl font-bold text-white mb-1">Select a Domain</h2>
-            <p className="text-gray-500 text-sm mb-6">Claude generates subfields on demand — nothing is preloaded.</p>
+            <h2 className="text-2xl font-bold text-white mb-1">Every field of human knowledge, one click away</h2>
+            <p className="text-gray-500 text-sm mb-5">Navigate Domain → Field → Branch → Topic. Claude Sonnet generates everything on demand — nothing is preloaded.</p>
+
+            {/* Feature overview */}
+            <div className="mb-7 space-y-2">
+              {/* Learning Path — featured */}
+              <div className="bg-blue-950/40 border border-blue-800/50 rounded-xl p-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-7 h-7 rounded-lg bg-blue-700/40 border border-blue-600/40 flex items-center justify-center flex-shrink-0 mt-0.5 text-blue-300 text-sm">↗</div>
+                  <div>
+                    <p className="text-blue-200 text-sm font-semibold">Mastermind Study Plan</p>
+                    <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">An exhaustive 7-level curriculum for any topic — from absolute prerequisites to the current research frontier. Every book and paper with search links, what each teaches, what you need to know first. Covers Level 0 prerequisites through Level 6 research frontier and the three works that define the field.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Other features — compact row */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  { label: "Explain Me", desc: "Deep beginner explanation for any topic", dot: "bg-yellow-500" },
+                  { label: "Discover", desc: "26 ways to explore — origin story, careers, papers, quiz, and more", dot: "bg-violet-500" },
+                  { label: "Wikipedia Verified", desc: "Every topic checked — real field or hallucination", dot: "bg-green-500" },
+                  { label: "7 Academic Search Links", desc: "Scholar, Semantic Scholar, OpenAlex, CORE, Inciteful, Talpa, WorldCat", dot: "bg-gray-400" },
+                ].map((f) => (
+                  <div key={f.label} className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-2.5">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${f.dot}`} />
+                      <p className="text-gray-200 text-xs font-medium">{f.label}</p>
+                    </div>
+                    <p className="text-gray-600 text-[11px] leading-relaxed">{f.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Select a Domain</h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {TAXONOMY_SEED.map((s) => (
                 <button key={s.domain} onClick={() => pickDomain(s.domain)}
@@ -487,8 +521,8 @@ export default function Home() {
                         Explain Me
                       </button>
                       <button onClick={() => setLearningPathTarget({ term: l2 })}
-                        className="text-xs bg-gray-800 hover:bg-blue-900 hover:text-blue-300 text-gray-400 px-2.5 py-1 rounded-lg transition-colors border border-gray-700 hover:border-blue-700">
-                        Learning Path
+                        className="text-xs bg-blue-900/50 hover:bg-blue-800/70 text-blue-300 hover:text-blue-200 px-3 py-1 rounded-lg transition-colors border border-blue-700/50 hover:border-blue-500 font-medium">
+                        ↗ Study Plan
                       </button>
                       <button onClick={() => setDiscoverTarget({ term: l2 })}
                         className="text-xs bg-gray-800 hover:bg-violet-900 hover:text-violet-300 text-gray-400 px-2.5 py-1 rounded-lg transition-colors border border-gray-700 hover:border-violet-700">
@@ -554,8 +588,8 @@ export default function Home() {
                         Explain Me
                       </button>
                       <button onClick={() => setLearningPathTarget({ term: l3, l2: selectedL2 })}
-                        className="text-xs bg-gray-800 hover:bg-blue-900 hover:text-blue-300 text-gray-400 px-2.5 py-1 rounded-lg transition-colors border border-gray-700 hover:border-blue-700">
-                        Learning Path
+                        className="text-xs bg-blue-900/50 hover:bg-blue-800/70 text-blue-300 hover:text-blue-200 px-3 py-1 rounded-lg transition-colors border border-blue-700/50 hover:border-blue-500 font-medium">
+                        ↗ Study Plan
                       </button>
                       <button onClick={() => setDiscoverTarget({ term: l3, l2: selectedL2 })}
                         className="text-xs bg-gray-800 hover:bg-violet-900 hover:text-violet-300 text-gray-400 px-2.5 py-1 rounded-lg transition-colors border border-gray-700 hover:border-violet-700">
