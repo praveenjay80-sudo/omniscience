@@ -56,6 +56,7 @@ export default function LearningPathModal({
   const [learningStyle, setLearningStyle] = useState("");
   const [planText, setPlanText] = useState("");
   const [planLoading, setPlanLoading] = useState(false);
+  const [planError, setPlanError] = useState<string | null>(null);
 
   const [expandedBooks, setExpandedBooks] = useState<Set<string>>(new Set());
   const [bookPrereqs, setBookPrereqs] = useState<Record<string, string>>({});
@@ -124,7 +125,12 @@ export default function LearningPathModal({
     return (text.match(/^### .+$/gm) ?? []).map((l) => l.replace(/^### /, "").trim());
   }
 
-  async function streamPart(part: number, coveredTitles: string[], onChunk: (t: string) => void): Promise<string> {
+  async function streamPart(
+    part: number,
+    coveredTitles: string[],
+    onChunk: (t: string) => void,
+    attempt = 0
+  ): Promise<string> {
     const res = await fetch("/api/studyplan", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -141,9 +147,17 @@ export default function LearningPathModal({
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      const chunk = decoder.decode(value, { stream: true });
-      text += chunk;
+      text += decoder.decode(value, { stream: true });
       onChunk(text);
+    }
+    if (text.includes("__ERROR__:")) {
+      const errMsg = text.split("__ERROR__:")[1]?.trim() ?? "Unknown error";
+      if (attempt < 2) {
+        onChunk("");
+        await new Promise((r) => setTimeout(r, 2000));
+        return streamPart(part, coveredTitles, onChunk, attempt + 1);
+      }
+      throw new Error(errMsg);
     }
     return text;
   }
@@ -158,31 +172,28 @@ export default function LearningPathModal({
 
     setPlanLoading(true);
     setPlanText("");
+    setPlanError(null);
 
     const sep = "\n\n---\n\n";
     try {
       const part1 = await streamPart(1, [], (t) => setPlanText(t));
-      if (part1.includes("__ERROR__:")) { setPlanText(part1); return; }
 
       const titles1 = extractTitles(part1);
       setPlanText(part1 + sep);
       const part2 = await streamPart(2, titles1, (t) => setPlanText(part1 + sep + t));
-      if (part2.includes("__ERROR__:")) { setPlanText(part1 + sep + part2); return; }
 
       const titles2 = [...titles1, ...extractTitles(part2)];
       setPlanText(part1 + sep + part2 + sep);
       const part3 = await streamPart(3, titles2, (t) => setPlanText(part1 + sep + part2 + sep + t));
-      if (part3.includes("__ERROR__:")) { setPlanText(part1 + sep + part2 + sep + part3); return; }
 
       const titles3 = [...titles2, ...extractTitles(part3)];
       setPlanText(part1 + sep + part2 + sep + part3 + sep);
       const part4 = await streamPart(4, titles3, (t) => setPlanText(part1 + sep + part2 + sep + part3 + sep + t));
-      if (part4.includes("__ERROR__:")) { setPlanText(part1 + sep + part2 + sep + part3 + sep + part4); return; }
 
       const full = part1 + sep + part2 + sep + part3 + sep + part4;
       localStorage.setItem(key, full);
     } catch (err) {
-      setPlanText((prev) => prev + `\n\nError: ${err instanceof Error ? err.message : "Failed"}`);
+      setPlanError(err instanceof Error ? err.message : "Generation failed");
     } finally {
       setPlanLoading(false);
     }
@@ -657,13 +668,24 @@ export default function LearningPathModal({
                     </div>
                   )}
                   {!planLoading && (
-                    <div className="mt-4 pt-3 border-t border-gray-800">
+                    <div className="mt-4 pt-3 border-t border-gray-800 flex items-center justify-between gap-4">
                       <button
-                        onClick={() => { setPlanText(""); }}
+                        onClick={() => { setPlanText(""); setPlanError(null); }}
                         className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
                       >
                         ← Change my profile
                       </button>
+                      {planError && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-red-400">Connection dropped — partial results shown</span>
+                          <button
+                            onClick={() => { setPlanText(""); fetchStudyPlan(); }}
+                            className="text-xs bg-blue-900/50 hover:bg-blue-800/70 text-blue-300 px-2 py-1 rounded border border-blue-700/50 transition-colors"
+                          >
+                            Retry →
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
