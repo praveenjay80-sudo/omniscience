@@ -7,23 +7,16 @@ import SearchLinks from "@/components/SearchLinks";
 import ExplainModal from "@/components/ExplainModal";
 import VerifyBadge from "@/components/VerifyBadge";
 import LearningPathModal from "@/components/LearningPathModal";
+import DiscoverModal from "@/components/DiscoverModal";
 
 type Phase = "pick-domain" | "pick-l1" | "pick-l2" | "view-l3";
 
-interface ExplainTarget {
-  term: string;
-  l2?: string;
-}
-
-interface LearningPathTarget {
-  term: string;
-  l2?: string;
-}
+interface ExplainTarget { term: string; l2?: string; }
+interface LearningPathTarget { term: string; l2?: string; }
+interface DiscoverTarget { term: string; l2?: string; }
 
 function cacheKey(domain: string, l1: string, l2?: string) {
-  return l2
-    ? `omni_l3::${domain}::${l1}::${l2}`
-    : `omni_l2::${domain}::${l1}`;
+  return l2 ? `omni_l3::${domain}::${l1}::${l2}` : `omni_l2::${domain}::${l1}`;
 }
 
 async function streamExpand(
@@ -59,6 +52,13 @@ async function streamExpand(
   return JSON.parse(raw.slice(start, end + 1)) as string[];
 }
 
+const LEVEL_BADGE: Record<string, string> = {
+  Introductory: "text-green-400 bg-green-950/60 border-green-900",
+  Undergraduate: "text-blue-400 bg-blue-950/60 border-blue-900",
+  Graduate: "text-yellow-400 bg-yellow-950/60 border-yellow-900",
+  Research: "text-red-400 bg-red-950/60 border-red-900",
+};
+
 export default function Home() {
   const [apiKey, setApiKey] = useState("");
   const [showKey, setShowKey] = useState(false);
@@ -77,26 +77,70 @@ export default function Home() {
 
   const [explainTarget, setExplainTarget] = useState<ExplainTarget | null>(null);
   const [learningPathTarget, setLearningPathTarget] = useState<LearningPathTarget | null>(null);
+  const [discoverTarget, setDiscoverTarget] = useState<DiscoverTarget | null>(null);
 
-  // verification state: term → status / url
+  // Wikipedia verification
   const [verifyMap, setVerifyMap] = useState<Record<string, VerifyStatus>>({});
   const [verifyUrlMap, setVerifyUrlMap] = useState<Record<string, string>>({});
   const [verifying, setVerifying] = useState(false);
 
-  // generation counter — incremented on every navigation to cancel stale async expand calls
+  // Difficulty badges (populated from cached prereq data)
+  const [difficultyMap, setDifficultyMap] = useState<Record<string, string>>({});
+
+  // Bookmarks
+  const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
+  const [showBookmarks, setShowBookmarks] = useState(false);
+
+  // Generation counter — prevents stale async expand callbacks from writing state
   const expandGenRef = useRef(0);
 
   useEffect(() => {
     const k = localStorage.getItem("omni_apikey");
     if (k) setApiKey(k);
+    const bm = localStorage.getItem("omni_bookmarks");
+    if (bm) setBookmarks(new Set(JSON.parse(bm)));
   }, []);
+
+  // Close bookmarks dropdown when clicking outside
+  useEffect(() => {
+    if (!showBookmarks) return;
+    const handler = () => setShowBookmarks(false);
+    document.addEventListener("click", handler);
+    return () => document.removeEventListener("click", handler);
+  }, [showBookmarks]);
+
+  // Load difficulty levels from cached prereq data whenever list changes
+  useEffect(() => {
+    const list = phase === "pick-l2" ? l2List : phase === "view-l3" ? l3List : [];
+    const l2Scope = phase === "view-l3" ? selectedL2 : "";
+    const map: Record<string, string> = {};
+    list.forEach((term) => {
+      const key = `omni_prereq::${selectedDomain}::${selectedL1}::${l2Scope}::${term}`;
+      const cached = localStorage.getItem(key);
+      if (!cached) return;
+      try {
+        const data = JSON.parse(cached) as { difficulty: { level: string } };
+        if (data.difficulty?.level) map[term] = data.difficulty.level;
+      } catch {}
+    });
+    if (Object.keys(map).length > 0) setDifficultyMap((prev) => ({ ...prev, ...map }));
+  }, [l2List, l3List]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const saveApiKey = (k: string) => {
     setApiKey(k);
     localStorage.setItem("omni_apikey", k);
   };
 
-  // Load any cached wiki results for a list of terms
+  const toggleBookmark = (term: string) => {
+    setBookmarks((prev) => {
+      const next = new Set(prev);
+      if (next.has(term)) next.delete(term);
+      else next.add(term);
+      localStorage.setItem("omni_bookmarks", JSON.stringify([...next]));
+      return next;
+    });
+  };
+
   const loadCachedVerify = useCallback((terms: string[]) => {
     const statusMap: Record<string, VerifyStatus> = {};
     const urlMap: Record<string, string> = {};
@@ -122,7 +166,7 @@ export default function Home() {
       const key = cacheKey(domain, l1, l2);
       const cached = localStorage.getItem(key);
       if (cached) {
-        if (expandGenRef.current !== myGen) return; // navigated away
+        if (expandGenRef.current !== myGen) return;
         const items = JSON.parse(cached) as string[];
         if (l2) { setL3List(items); loadCachedVerify(items); }
         else { setL2List(items); loadCachedVerify(items); }
@@ -141,7 +185,7 @@ export default function Home() {
           const match = partial.match(/\[[\s\S]*/);
           if (match) setLoadingText(match[0].slice(0, 120) + "…");
         });
-        if (expandGenRef.current !== myGen) return; // navigated away while generating
+        if (expandGenRef.current !== myGen) return;
         localStorage.setItem(key, JSON.stringify(items));
         if (l2) { setL3List(items); loadCachedVerify(items); }
         else { setL2List(items); loadCachedVerify(items); }
@@ -149,10 +193,7 @@ export default function Home() {
         if (expandGenRef.current !== myGen) return;
         setError(err instanceof Error ? err.message : "Unknown error");
       } finally {
-        if (expandGenRef.current === myGen) {
-          setLoading(false);
-          setLoadingText("");
-        }
+        if (expandGenRef.current === myGen) { setLoading(false); setLoadingText(""); }
       }
     },
     [apiKey, loadCachedVerify]
@@ -165,12 +206,10 @@ export default function Home() {
       terms.forEach((t) => { if (!next[t]) next[t] = "checking"; });
       return next;
     });
-
     await verifyAll(terms, (index, status, url) => {
       setVerifyMap((prev) => ({ ...prev, [terms[index]]: status }));
       if (url) setVerifyUrlMap((prev) => ({ ...prev, [terms[index]]: url }));
     });
-
     setVerifying(false);
   };
 
@@ -213,10 +252,7 @@ export default function Home() {
       setSelectedDomain(""); setSelectedL1(""); setSelectedL2("");
       setL2List([]); setL3List([]);
     }
-    if (p === "pick-l1") {
-      setSelectedL1(""); setSelectedL2("");
-      setL2List([]); setL3List([]);
-    }
+    if (p === "pick-l1") { setSelectedL1(""); setSelectedL2(""); setL2List([]); setL3List([]); }
     if (p === "pick-l2") { setSelectedL2(""); setL3List([]); }
   };
 
@@ -265,18 +301,70 @@ export default function Home() {
         </nav>
 
         <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Bookmarks dropdown */}
+          <div className="relative" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setShowBookmarks((v) => !v)}
+              className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
+                bookmarks.size > 0
+                  ? "bg-amber-950 hover:bg-amber-900 text-amber-400 border-amber-900"
+                  : "bg-gray-800 hover:bg-gray-700 text-gray-400 border-gray-700"
+              }`}
+            >
+              ★ {bookmarks.size > 0 ? bookmarks.size : "Bookmarks"}
+            </button>
+            {showBookmarks && (
+              <div className="absolute right-0 top-full mt-1 w-64 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-40 p-2">
+                <div className="flex items-center justify-between px-1 mb-1.5">
+                  <span className="text-xs text-gray-400 font-medium">
+                    {bookmarks.size > 0 ? `${bookmarks.size} bookmarks` : "No bookmarks yet"}
+                  </span>
+                  {bookmarks.size > 0 && (
+                    <button
+                      onClick={() => { setBookmarks(new Set()); localStorage.removeItem("omni_bookmarks"); }}
+                      className="text-xs text-red-500 hover:text-red-300 transition-colors"
+                    >
+                      Clear all
+                    </button>
+                  )}
+                </div>
+                {bookmarks.size === 0 ? (
+                  <p className="text-xs text-gray-600 px-1 py-1">
+                    Click ☆ on any topic card to save it here.
+                  </p>
+                ) : (
+                  <div className="max-h-56 overflow-y-auto">
+                    {[...bookmarks].map((term) => (
+                      <div key={term} className="flex items-center justify-between px-2 py-1 hover:bg-gray-800 rounded text-xs">
+                        <span className="text-gray-300 truncate">{term}</span>
+                        <button
+                          onClick={() => toggleBookmark(term)}
+                          className="text-gray-600 hover:text-red-400 ml-2 flex-shrink-0 transition-colors"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
           <button
             onClick={() => {
-              if (!confirm("Delete all cached taxonomy and Wikipedia results?")) return;
+              if (!confirm("Delete all cached taxonomy, Wikipedia, and Discover results?")) return;
               const keys = Object.keys(localStorage).filter(
                 (k) =>
                   k.startsWith("omni_l2::") ||
                   k.startsWith("omni_l3::") ||
                   k.startsWith("omni_wiki::") ||
                   k.startsWith("omni_prereq::") ||
-                  k.startsWith("omni_plan::")
+                  k.startsWith("omni_plan::") ||
+                  k.startsWith("omni_discover::")
               );
               keys.forEach((k) => localStorage.removeItem(k));
+              setDifficultyMap({});
               goTo("pick-domain");
             }}
             className="text-xs bg-red-950 hover:bg-red-900 text-red-400 hover:text-red-300 px-3 py-1.5 rounded-lg border border-red-900 transition-colors"
@@ -284,6 +372,7 @@ export default function Home() {
           >
             Reset Cache
           </button>
+
           <input
             type={showKey ? "text" : "password"}
             value={apiKey}
@@ -308,7 +397,7 @@ export default function Home() {
           <div className="mb-4 bg-blue-950 border border-blue-800 rounded-lg px-4 py-3 flex items-center gap-3">
             <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
             <div>
-              <p className="text-blue-300 text-sm">Generating with Claude Opus…</p>
+              <p className="text-blue-300 text-sm">Generating with Claude Sonnet…</p>
               {loadingText && <p className="text-blue-500 text-xs mt-0.5 font-mono">{loadingText}</p>}
             </div>
           </div>
@@ -369,23 +458,41 @@ export default function Home() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {l2List.map((l2) => (
                   <div key={l2} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
-                    <div className="flex items-start justify-between mb-3">
-                      <button onClick={() => pickL2(l2)} className="text-left group flex-1">
+                    <div className="flex items-start justify-between mb-2">
+                      <button onClick={() => pickL2(l2)} className="text-left group flex-1 mr-2">
                         <p className="font-semibold text-purple-300 group-hover:text-green-300 transition-colors">
                           {l2} →
                         </p>
+                        {difficultyMap[l2] && (
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded border mt-1 inline-block ${LEVEL_BADGE[difficultyMap[l2]] ?? "text-gray-400 bg-gray-800 border-gray-700"}`}>
+                            {difficultyMap[l2]}
+                          </span>
+                        )}
                       </button>
-                      <VerifyBadge status={verifyMap[l2]} url={verifyUrlMap[l2]} />
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <button
+                          onClick={() => toggleBookmark(l2)}
+                          className={`text-base leading-none transition-colors ${bookmarks.has(l2) ? "text-amber-400" : "text-gray-700 hover:text-amber-400"}`}
+                          title={bookmarks.has(l2) ? "Remove bookmark" : "Bookmark"}
+                        >
+                          {bookmarks.has(l2) ? "★" : "☆"}
+                        </button>
+                        <VerifyBadge status={verifyMap[l2]} url={verifyUrlMap[l2]} />
+                      </div>
                     </div>
                     <SearchLinks term={l2} />
-                    <div className="mt-2 flex gap-2">
+                    <div className="mt-2 flex flex-wrap gap-1.5">
                       <button onClick={() => setExplainTarget({ term: l2 })}
-                        className="text-xs bg-gray-800 hover:bg-yellow-900 hover:text-yellow-300 text-gray-400 px-3 py-1 rounded-lg transition-colors border border-gray-700 hover:border-yellow-700">
+                        className="text-xs bg-gray-800 hover:bg-yellow-900 hover:text-yellow-300 text-gray-400 px-2.5 py-1 rounded-lg transition-colors border border-gray-700 hover:border-yellow-700">
                         Explain Me
                       </button>
                       <button onClick={() => setLearningPathTarget({ term: l2 })}
-                        className="text-xs bg-gray-800 hover:bg-blue-900 hover:text-blue-300 text-gray-400 px-3 py-1 rounded-lg transition-colors border border-gray-700 hover:border-blue-700">
+                        className="text-xs bg-gray-800 hover:bg-blue-900 hover:text-blue-300 text-gray-400 px-2.5 py-1 rounded-lg transition-colors border border-gray-700 hover:border-blue-700">
                         Learning Path
+                      </button>
+                      <button onClick={() => setDiscoverTarget({ term: l2 })}
+                        className="text-xs bg-gray-800 hover:bg-violet-900 hover:text-violet-300 text-gray-400 px-2.5 py-1 rounded-lg transition-colors border border-gray-700 hover:border-violet-700">
+                        Discover
                       </button>
                     </div>
                   </div>
@@ -421,18 +528,38 @@ export default function Home() {
                 {l3List.map((l3) => (
                   <div key={l3} className="bg-gray-900 border border-gray-800 rounded-xl p-4">
                     <div className="flex items-start justify-between mb-2">
-                      <p className="font-medium text-gray-100 flex-1">{l3}</p>
-                      <VerifyBadge status={verifyMap[l3]} url={verifyUrlMap[l3]} />
+                      <div className="flex-1 mr-2">
+                        <p className="font-medium text-gray-100">{l3}</p>
+                        {difficultyMap[l3] && (
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded border mt-1 inline-block ${LEVEL_BADGE[difficultyMap[l3]] ?? "text-gray-400 bg-gray-800 border-gray-700"}`}>
+                            {difficultyMap[l3]}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-shrink-0">
+                        <button
+                          onClick={() => toggleBookmark(l3)}
+                          className={`text-base leading-none transition-colors ${bookmarks.has(l3) ? "text-amber-400" : "text-gray-700 hover:text-amber-400"}`}
+                          title={bookmarks.has(l3) ? "Remove bookmark" : "Bookmark"}
+                        >
+                          {bookmarks.has(l3) ? "★" : "☆"}
+                        </button>
+                        <VerifyBadge status={verifyMap[l3]} url={verifyUrlMap[l3]} />
+                      </div>
                     </div>
                     <SearchLinks term={l3} />
-                    <div className="mt-2 flex gap-2">
+                    <div className="mt-2 flex flex-wrap gap-1.5">
                       <button onClick={() => setExplainTarget({ term: l3, l2: selectedL2 })}
-                        className="text-xs bg-gray-800 hover:bg-yellow-900 hover:text-yellow-300 text-gray-400 px-3 py-1 rounded-lg transition-colors border border-gray-700 hover:border-yellow-700">
+                        className="text-xs bg-gray-800 hover:bg-yellow-900 hover:text-yellow-300 text-gray-400 px-2.5 py-1 rounded-lg transition-colors border border-gray-700 hover:border-yellow-700">
                         Explain Me
                       </button>
                       <button onClick={() => setLearningPathTarget({ term: l3, l2: selectedL2 })}
-                        className="text-xs bg-gray-800 hover:bg-blue-900 hover:text-blue-300 text-gray-400 px-3 py-1 rounded-lg transition-colors border border-gray-700 hover:border-blue-700">
+                        className="text-xs bg-gray-800 hover:bg-blue-900 hover:text-blue-300 text-gray-400 px-2.5 py-1 rounded-lg transition-colors border border-gray-700 hover:border-blue-700">
                         Learning Path
+                      </button>
+                      <button onClick={() => setDiscoverTarget({ term: l3, l2: selectedL2 })}
+                        className="text-xs bg-gray-800 hover:bg-violet-900 hover:text-violet-300 text-gray-400 px-2.5 py-1 rounded-lg transition-colors border border-gray-700 hover:border-violet-700">
+                        Discover
                       </button>
                     </div>
                   </div>
@@ -463,6 +590,17 @@ export default function Home() {
           l2={learningPathTarget.l2}
           apiKey={apiKey}
           onClose={() => setLearningPathTarget(null)}
+        />
+      )}
+
+      {discoverTarget && (
+        <DiscoverModal
+          term={discoverTarget.term}
+          domain={selectedDomain}
+          l1={selectedL1}
+          l2={discoverTarget.l2}
+          apiKey={apiKey}
+          onClose={() => setDiscoverTarget(null)}
         />
       )}
     </div>

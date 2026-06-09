@@ -45,10 +45,12 @@ The user provides their own Anthropic API key (BYOK), stored in `localStorage` o
 | `app/api/explain/route.ts` | Streams beginner explanation from Claude |
 | `app/api/prerequisites/route.ts` | Streams prerequisite chain + difficulty JSON |
 | `app/api/studyplan/route.ts` | Streams week-by-week study plan markdown |
+| `app/api/discover/route.ts` | All 24 Discover features — dispatches to correct prompt by `feature` param |
 | `components/SearchLinks.tsx` | Row of 7 academic search buttons |
 | `components/VerifyBadge.tsx` | Wikipedia status badge (✓ / ? / ✗) |
 | `components/ExplainModal.tsx` | Streaming explanation modal |
 | `components/LearningPathModal.tsx` | Prerequisites + Study Plan modal (two tabs) |
+| `components/DiscoverModal.tsx` | Two-panel discover modal: sidebar (24 features) + content pane |
 
 ---
 
@@ -79,6 +81,9 @@ pick-domain → pick-l1 → pick-l2 → view-l3
 | `omni_wiki::term` | Wikipedia result `{status, url}` (JSON) |
 | `omni_prereq::domain::l1::l2::term` | Prerequisite chain + difficulty (JSON) |
 | `omni_plan::domain::l1::l2::term::hours` | Study plan markdown string |
+| `omni_discover::domain::l1::l2::term::feature` | Discover modal result for simple features |
+| `omni_discover::domain::l1::l2::term::feature::param` | Discover result for param features (analogies/collision/compare) |
+| `omni_bookmarks` | JSON array of bookmarked topic strings |
 
 The **Reset Cache** button in the header clears all `omni_l2::`, `omni_l3::`, `omni_wiki::`, `omni_prereq::`, `omni_plan::` keys.
 
@@ -124,14 +129,22 @@ Body: `{ apiKey, term, domain, l1, l2?, hoursPerWeek, prerequisites? }`
 ## Feature List (as of 2026-06-09)
 
 1. **Taxonomy browser** — Domain → L1 → L2 → L3 navigation
-2. **On-demand generation** — Claude Opus generates L2/L3 on selection, cached in localStorage
+2. **On-demand generation** — Claude Sonnet generates L2/L3 on selection, cached in localStorage
 3. **7 academic search links** per item — Google Scholar, Semantic Scholar ↑cited, OpenAlex ↑cited, CORE open access, Inciteful, Talpa Books, WorldCat ↑loaned
 4. **Explain Me** — streaming beginner explanation modal for any L2/L3 item
 5. **Wikipedia verification** — batch-check items, show ✓/✗/? badges with links; batches of 6 with 150ms pause
 6. **Learning Path modal** (on every L2 and L3 card):
    - **Prerequisites tab**: ordered prerequisite chain with per-step time estimates + difficulty summary (level / depth / months / hours)
    - **Study Plan tab**: hours/week input → streaming week-by-week plan with real textbooks/courses
-7. **Reset Cache** — clears all generated and cached data from localStorage
+7. **Bookmarks** — star any topic card to save it; ★ button in header shows all bookmarks, stored in `omni_bookmarks` localStorage
+8. **Difficulty badges** — colored level pill (Introductory/Undergraduate/Graduate/Research) on cards where prereq data is already cached
+9. **Discover modal** — one "Discover" button per card opens a two-panel modal with 24 features across 5 groups:
+   - **UNDERSTAND**: 1% Insight, Mental Models, Concept DNA, Origin Story, Misconceptions, Schools of Thought, Elevator Pitch
+   - **WORKS**: The Canon, Reading Chain, Paper Trail, Seminal Timeline, Hidden Gems, Flashcards (with Copy All)
+   - **EXPLORE**: Career Paths, Research Frontiers, Field History, Intellectual Genealogy, Resource Finder
+   - **CONNECT**: Domain Analogies (input field), Topic Collision (input field), Compare Topics (input field)
+   - **TEST YOURSELF**: Quiz Me (5 MCQ with scoring), Feynman Test (user writes → Claude grades), Socratic Dialogue (live chat)
+10. **Reset Cache** — clears all generated and cached data from localStorage (including `omni_discover::` keys)
 
 ---
 
@@ -183,10 +196,11 @@ No `.env` needed — API key is entered by the user in the UI.
 
 ## Model Note
 
-Currently using `claude-opus-4-7`. To upgrade model, update the `model` field in all four API routes:
+Currently using `claude-sonnet-4-6`. To upgrade model, update the `model` field in all five API routes:
 - `app/api/generate/route.ts`
 - `app/api/explain/route.ts`
 - `app/api/prerequisites/route.ts`
 - `app/api/studyplan/route.ts`
+- `app/api/discover/route.ts`
 
 Check https://docs.anthropic.com/en/docs/about-claude/models for the latest model IDs.

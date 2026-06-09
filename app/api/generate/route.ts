@@ -49,7 +49,7 @@ List all broad branches of "${l1}". Return ONLY a raw JSON array of strings. No 
     async start(controller) {
       try {
         const anthropicStream = await client.messages.stream({
-          model: "claude-opus-4-7",
+          model: "claude-sonnet-4-6",
           max_tokens: 8192,
           thinking: { type: "adaptive" },
           messages: [{ role: "user", content: prompt }],
