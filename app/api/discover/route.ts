@@ -106,14 +106,27 @@ function buildPrompt(
 }
 
 export async function POST(req: NextRequest) {
-  const { apiKey, feature, term, domain, l1, l2, params } = await req.json();
+  let body: { apiKey?: string; feature?: string; term?: string; domain?: string; l1?: string; l2?: string; params?: Record<string, string> };
+  try {
+    body = await req.json();
+  } catch {
+    return new Response("Invalid JSON body", { status: 400 });
+  }
+
+  const { apiKey, feature, term, domain, l1, l2, params } = body;
 
   if (!apiKey || !feature || !term) {
     return new Response("apiKey, feature, and term are required", { status: 400 });
   }
 
   const context = l2 ? `${l2} → ${l1} → ${domain}` : `${l1} → ${domain}`;
-  const prompt = buildPrompt(feature, term, context, params || {});
+
+  let prompt: string;
+  try {
+    prompt = buildPrompt(feature, term, context, params || {});
+  } catch (err) {
+    return new Response(`Prompt build error: ${err instanceof Error ? err.message : "unknown"}`, { status: 500 });
+  }
 
   const client = new Anthropic({ apiKey });
   const encoder = new TextEncoder();

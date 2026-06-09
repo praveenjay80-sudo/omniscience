@@ -222,13 +222,25 @@ export default function DiscoverModal({
     setLoading(feature);
 
     try {
-      const res = await fetch("/api/discover", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey, feature, term, domain, l1, l2, params }),
-      });
+      let res: Response;
+      try {
+        res = await fetch("/api/discover", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ apiKey, feature, term, domain, l1, l2, params }),
+        });
+      } catch {
+        throw new Error("Cannot reach the server. Check your connection or try again in a moment.");
+      }
 
-      const reader = res.body!.getReader();
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        throw new Error(`Server error ${res.status}${errText ? `: ${errText}` : ""}`);
+      }
+
+      if (!res.body) throw new Error("Empty response from server.");
+
+      const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let text = "";
 
@@ -255,7 +267,6 @@ export default function DiscoverModal({
             setQuizQuestions(questions);
             setQuizAnswers({});
             setQuizSubmitted(false);
-            // Cache raw JSON
             localStorage.setItem(cacheKey("quiz"), text.slice(start, end + 1));
           } catch {}
         }
