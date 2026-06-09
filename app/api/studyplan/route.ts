@@ -23,44 +23,41 @@ export async function POST(req: NextRequest) {
     learningStyle ? `Learns best by: ${learningStyle}` : null,
   ].filter(Boolean).join(" | ");
 
-  const prompt = `You are the world's most knowledgeable academic guide for ${context}. You know every serious book, every landmark paper, every foundational text that has ever mattered in this field and its prerequisite subjects.
-
-Create a complete, exhaustive learning literature map for ${context} — from the absolute zero prerequisite foundations through to the current research frontier. This is the definitive reading order for a serious learner.
-
-Student profile: ${profile}
-
----
-
-Write every resource as a flowing paragraph — no labels like "Teaches:" or "Prerequisites:", no type tags, no form-style bullets. Just natural prose, as if a knowledgeable mentor is telling you about each work in conversation. Make it readable.
-
-For each resource, write it in this flowing style:
+  const resourceFormat = `For each resource, write it as:
 
 ### Title — Author(s) (Year)
 
-One or two paragraphs. First: what this work actually does and why it exists in this position in the curriculum. What you will be able to think or do after working through it that you couldn't before. Second sentence or two: what you need to already know before it makes sense. End with the search links woven naturally: [Amazon](search url) for books, [arXiv](search url) or [Google Scholar](search url) for papers.
+A flowing paragraph (not bullet points, no bold labels like "Teaches:" or "Prerequisites:"). Tell the reader what this work actually does and why it belongs here — what capability or understanding they'll gain. Mention what they need to know before it. End with search links woven naturally into the prose: [Amazon](https://www.amazon.com/s?k=Title+Author) for books, [Google Scholar](https://scholar.google.com/scholar?q=Title+Author) or [arXiv](https://arxiv.org/search/?query=Title&searchtype=all) for papers. Encode spaces as + in URLs.`;
 
-For search link URLs: encode spaces as +, use the exact title and first author.
+  const part = (body as { part?: number }).part ?? 1;
+
+  const prompt = part === 1
+    ? `You are the world's most knowledgeable academic guide for ${context}.
+
+Create the first half of a complete literature map for ${context} — covering the foundational levels from zero prerequisites through working knowledge. Be thorough: include every resource that genuinely belongs.
+
+Student profile: ${profile}
+
+${resourceFormat}
 
 ---
 
-Produce all levels in order:
-
 ## Level 0 — Before You Begin
-These are not ${term}. These are the prerequisite subjects you must already have — the math, the theory, the adjacent tools — before ${term} will make sense. If you're missing any of these, start here.
+These are not ${term}. These are the prerequisite subjects — math, theory, adjacent tools — you must already have before ${term} makes sense. Start here if you're missing any.
 
-[all relevant prerequisite resources — as many as genuinely belong here]
+[all genuinely relevant prerequisite resources]
 
 ---
 
 ## Level 1 — First Contact
-Introductions that assume no prior knowledge of ${term} itself. After this level you understand what the field is, why it exists, and what it is capable of.
+Introductions assuming no prior knowledge of ${term} itself. After this level you understand what the field is, why it exists, and what it can do.
 
-[all relevant resources — as many as genuinely belong here]
+[all relevant resources]
 
 ---
 
 ## Level 2 — The Foundation
-The core textbooks that rigorously establish the fundamentals. What every serious student works through in their first formal year.
+Core textbooks that rigorously establish the fundamentals. What every serious student reads in their first formal year.
 
 [all relevant resources]
 
@@ -70,6 +67,16 @@ The core textbooks that rigorously establish the fundamentals. What every seriou
 After this level you can work in the field — solve real problems, read current papers, contribute to projects.
 
 [all relevant resources]
+
+Real titles and real authors only. Do not truncate any level.`
+
+    : `You are the world's most knowledgeable academic guide for ${context}.
+
+Create the second half of a complete literature map for ${context} — covering graduate level, the seminal papers, and the research frontier.
+
+Student profile: ${profile}
+
+${resourceFormat}
 
 ---
 
@@ -81,7 +88,7 @@ Graduate-level textbooks and advanced monographs. The reading list for a PhD stu
 ---
 
 ## Level 5 — The Papers Everyone Cites
-The landmark papers and seminal works that defined this field. Anyone calling themselves serious about ${term} has read all of these. Include the originals — the papers that introduced the field's key ideas, not tutorials about them.
+The landmark papers and seminal works that defined this field. The originals — the papers that introduced the key ideas, not tutorials about them. Anyone serious about ${term} has read all of these.
 
 [all relevant papers — do not artificially limit this list]
 
@@ -95,15 +102,9 @@ High-impact recent papers and surveys defining the current state of the art. Wha
 ---
 
 ## The Three That Define the Field
-*If someone asks "what are the 3 books that define this field" — these are them. The canon. Explain in 2 sentences why each one is irreplaceable.*
+If someone asks "what are the three works that define this field" — these are them. One sentence each on why each is irreplaceable.
 
-If someone asks "what are the three books that define this field" — these are them. Write a sentence on why each one is irreplaceable.
-
-[3 resources]
-
----
-
-Include every resource that genuinely belongs — do not cap or truncate any level. A deep field may have 50+ resources. Every resource earns its place. Real titles, real authors only — no invented works. If uncertain of a detail, use search links so the reader can verify.`;
+Real titles and real authors only. Do not truncate any level.`;
 
   const encoder = new TextEncoder();
 

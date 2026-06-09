@@ -116,50 +116,56 @@ export default function LearningPathModal({
     }
   }
 
+  async function streamPart(part: number, onChunk: (t: string) => void): Promise<string> {
+    const res = await fetch("/api/studyplan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        apiKey, term, domain, l1, l2,
+        hoursPerWeek, background, goal, learningStyle, part,
+      }),
+    });
+    if (!res.ok) throw new Error(`Server error ${res.status}`);
+    if (!res.body) throw new Error("Empty response");
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let text = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value, { stream: true });
+      text += chunk;
+      onChunk(text);
+    }
+    return text;
+  }
+
   async function fetchStudyPlan() {
     const profileKey = `${hoursPerWeek}::${background}::${goal}::${learningStyle}`;
     const key = `omni_plan::${domain}::${l1}::${l2 ?? ""}::${term}::${profileKey}`;
     const cached = localStorage.getItem(key);
-    if (cached) {
-      setPlanText(cached);
-      return;
-    }
+    if (cached) { setPlanText(cached); return; }
 
-    if (!apiKey) {
-      setPlanText("Enter your API key first.");
-      return;
-    }
+    if (!apiKey) { setPlanText("Enter your API key first."); return; }
 
     setPlanLoading(true);
     setPlanText("");
 
     try {
-      const res = await fetch("/api/studyplan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          apiKey, term, domain, l1, l2,
-          hoursPerWeek, background, goal, learningStyle,
-        }),
-      });
+      // Part 1: Levels 0–3
+      const part1 = await streamPart(1, (t) => setPlanText(t));
+      if (part1.includes("__ERROR__:")) { setPlanText(part1); return; }
 
-      const reader = res.body!.getReader();
-      const decoder = new TextDecoder();
-      let text = "";
+      // Part 2: Levels 4–6 + Canon (auto-chained)
+      const divider = "\n\n---\n\n";
+      setPlanText(part1 + divider);
+      const part2 = await streamPart(2, (t) => setPlanText(part1 + divider + t));
+      if (part2.includes("__ERROR__:")) { setPlanText(part1 + divider + part2); return; }
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        text += chunk;
-        setPlanText(text);
-      }
-
-      if (!text.includes("__ERROR__:")) {
-        localStorage.setItem(key, text);
-      }
+      const full = part1 + divider + part2;
+      localStorage.setItem(key, full);
     } catch (err) {
-      setPlanText(`Error: ${err instanceof Error ? err.message : "Failed"}`);
+      setPlanText((prev) => prev + `\n\nError: ${err instanceof Error ? err.message : "Failed"}`);
     } finally {
       setPlanLoading(false);
     }
@@ -477,21 +483,29 @@ export default function LearningPathModal({
               {planLoading && !planText && (
                 <div className="flex items-center gap-2 text-gray-400 text-sm py-4">
                   <span className="w-4 h-4 border border-gray-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
-                  Building your personal roadmap…
+                  Building foundations and working knowledge…
                 </div>
               )}
 
               {planText && (
                 <div>
                   <div className="space-y-0.5">{renderMarkdown(planText)}</div>
-                  <div className="mt-4 pt-3 border-t border-gray-800">
-                    <button
-                      onClick={() => { setPlanText(""); }}
-                      className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
-                    >
-                      ← Change my profile
-                    </button>
-                  </div>
+                  {planLoading && (
+                    <div className="flex items-center gap-2 text-gray-400 text-xs mt-4">
+                      <span className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                      Loading advanced levels and research frontier…
+                    </div>
+                  )}
+                  {!planLoading && (
+                    <div className="mt-4 pt-3 border-t border-gray-800">
+                      <button
+                        onClick={() => { setPlanText(""); }}
+                        className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
+                      >
+                        ← Change my profile
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
