@@ -18,70 +18,91 @@ export async function POST(req: NextRequest) {
   const profile = [
     background ? `Background: ${background}` : null,
     goal ? `Goal: ${goal}` : null,
-    `${hoursPerWeek} hours/week available`,
+    `${hoursPerWeek} hours/week`,
     learningStyle ? `Learns best by: ${learningStyle}` : null,
   ].filter(Boolean).join(" | ");
 
-  const prompt = `You are the world's best mentor for ${context}. You know this field not just from textbooks but from the inside — what actually works when learning it, what trips beginners up, which resources are genuinely good vs just famous, and what separates people who truly master it from people who dabble for years without getting anywhere.
+  const prompt = `You are the world's most knowledgeable academic guide for ${context}. You know every serious book, every landmark paper, every foundational text that has ever mattered in this field and its prerequisite subjects.
 
-Your student wants to learn ${context}.
+Create a COMPLETE, EXHAUSTIVE learning literature map for ${context} — from the absolute zero prerequisite foundations through to the current research frontier. This should be the definitive list: every serious learner's complete reading order.
 
-**Their profile:** ${profile}
-
-Create a **Mastermind Plan** — a phase-by-phase learning journey designed for exactly this person. Not a generic syllabus. An insider's roadmap written as personal advice.
+**Student profile:** ${profile}
 
 ---
 
-Use this exact structure:
+**FORMAT RULES — follow exactly for every single resource:**
 
-## Mastermind Plan: ${term}
-*For: [echo their profile back in one crisp sentence — e.g. "A complete beginner aiming for academic mastery, studying 10 hours/week, learns best by building things"]*
-*Honest time to real competence: [realistic estimate — don't sugarcoat]*
+### [TYPE] Full Title
+*Author(s) · Year · Publisher/Venue*
+**Teaches:** 2-3 sentences on what you actually learn and what capability you gain
+**Prerequisites:** Exactly what you must already know before opening this
+**Find it:** [Amazon](https://www.amazon.com/s?k=Title+Author) for books · [arXiv](https://arxiv.org/search/?query=Title&searchtype=all) or [Google Scholar](https://scholar.google.com/scholar?q=Title+Author) for papers
 
----
+TYPE is one of: TEXTBOOK · BOOK · PAPER · SURVEY · LECTURE NOTES
 
-### Phase 1: [Give this phase a cinematic, evocative name — not "Phase 1: Basics". Something that captures what this phase actually feels like or achieves.]
-*The mission: [One sentence — what mental shift or new capability this phase produces]*
-
-**What you're going for**
-[2-3 sentences. Not what you'll read — what you'll be able to think and do differently when this phase is done.]
-
-**Your path**
-1. [Specific resource — name the book with exact chapters, or name the course with exact modules] — [One opinionated sentence: WHY this resource and not the other famous one]
-2. [Second resource, same format]
-3. [Third resource only if genuinely needed]
-
-**Proof test — before you move on, you must be able to:**
-[One specific, concrete challenge. Not "understand X." Something like: "Explain X to someone at a dinner party without notes" or "Derive Y from scratch" or "Build Z from zero" or "Sit the exam in [book] chapters 1-4 and score 80%+."]
-
-**The cheat code**
-[The one insight or trick that makes this phase click — what an insider would whisper to you. Something you won't find in the table of contents.]
-
-**Skip this**
-[What most beginners waste time on in this phase and why it's a trap at this stage.]
-
-**Time at ${hoursPerWeek}h/week:** ~[X] weeks
+For search links: replace spaces with + in the URL. Use the exact title and primary author.
 
 ---
 
-[4 to 6 phases total. Each phase should build on the last. Phase names should feel like chapters in a story.]
+Now produce all levels in order. Do not skip levels. Do not merge levels:
+
+## Level 0 — Prerequisites: What You Must Know Before Starting
+*These are not ${term}. These are the adjacent fields you must already have before ${term} makes sense. If you're missing any of these, start here.*
+
+[List 4–6 foundational prerequisite resources from other fields — the math, the theory, the tools, whatever ${term} builds on]
 
 ---
 
-## The Graduation Test
-[A specific, tangible project or artifact they could show the world. Not "keep studying." Something concrete: build X, write Y, solve Z, present W. Something that proves they've arrived.]
+## Level 1 — First Contact: Accessible Introductions
+*Books and survey papers that introduce ${term} from scratch, assuming no prior knowledge of the subject itself. After this level you understand what the field is and why it exists.*
 
-## The Mistake That Kills Most Learners
-[The single biggest trap — what most self-studiers do wrong that stalls them for months or years. Be direct.]
-
-## The Insider's Edge
-[3 non-obvious pieces of advice that most resources won't tell you. Things that come from real experience with this field. Can include: what order NOT to do things in, an underrated resource everyone ignores, a mental model that changes everything, how professionals in this field actually think vs how textbooks present it.]
+[List 3–5 resources]
 
 ---
 
-Be ruthlessly specific. Real book titles, real chapter numbers, real course names and module numbers. Be opinionated — say what's overrated by name. This is the plan you'd give your most promising student who trusted you completely and said "don't hold back, tell me exactly what to do."
+## Level 2 — The Foundation: Core Textbooks
+*The textbooks that rigorously establish the field's fundamentals. These are what every serious student reads in their first formal year with the subject.*
 
-Total length: 1200–1800 words.`;
+[List 4–6 resources]
+
+---
+
+## Level 3 — Working Knowledge: Becoming a Practitioner
+*After this level you can work in the field — solve real problems, read current papers, contribute to projects. The gap between Level 2 and Level 3 is large; name the resources that bridge it.*
+
+[List 4–6 resources]
+
+---
+
+## Level 4 — Advanced Depth: Graduate Level
+*Graduate-level textbooks, advanced monographs, and specialized texts. The reading list for a PhD student's first two years.*
+
+[List 4–6 resources]
+
+---
+
+## Level 5 — The Papers Every Expert Has Read
+*The landmark papers and seminal works that defined this field. Anyone calling themselves an expert has read all of these. Include the original papers that introduced the field's key ideas — not just modern tutorials about them.*
+
+[List 6–10 papers — include the real seminal works with real authors and real years]
+
+---
+
+## Level 6 — The Research Frontier
+*High-impact recent papers, comprehensive surveys, and preprints defining the current state of the art. What researchers are reading and citing right now.*
+
+[List 5–8 papers/surveys — be specific, real titles and authors only]
+
+---
+
+## The Non-Negotiables
+*If someone asks "what are the 3 books that define this field" — these are them. The canon. Explain in 2 sentences why each one is irreplaceable.*
+
+[List exactly 3 resources]
+
+---
+
+Aim for 30–40 resources total. Every resource must earn its place with a unique contribution. Use real titles and real authors only — do not invent resources. If you're uncertain of a detail, use the search link format so the reader can verify.`;
 
   const encoder = new TextEncoder();
 
@@ -90,7 +111,7 @@ Total length: 1200–1800 words.`;
       try {
         const anthropicStream = await client.messages.stream({
           model: "claude-sonnet-4-6",
-          max_tokens: 6144,
+          max_tokens: 8192,
           thinking: { type: "adaptive" },
           messages: [{ role: "user", content: prompt }],
         });

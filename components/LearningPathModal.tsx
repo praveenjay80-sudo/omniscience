@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 
 interface Prerequisite {
   name: string;
@@ -167,32 +167,38 @@ export default function LearningPathModal({
 
   function renderMarkdown(text: string) {
     return text.split("\n").map((line, i) => {
-      const inline = (s: string) =>
-        s.split(/(\*\*[^*]+\*\*)/g).map((p, j) =>
-          p.startsWith("**") && p.endsWith("**") ? (
-            <strong key={j} className="text-gray-200 font-semibold">
-              {p.slice(2, -2)}
-            </strong>
-          ) : (
-            p
-          )
-        );
+      const inline = (s: string): React.ReactNode[] =>
+        s.split(/(\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\)|\*[^*\n]+\*)/g).map((p, j) => {
+          if (p.startsWith("**") && p.endsWith("**"))
+            return <strong key={j} className="text-gray-200 font-semibold">{p.slice(2, -2)}</strong>;
+          const lm = p.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+          if (lm)
+            return (
+              <a key={j} href={lm[2]} target="_blank" rel="noopener noreferrer"
+                className="text-blue-400 hover:text-blue-300 underline underline-offset-2">
+                {lm[1]}
+              </a>
+            );
+          if (p.startsWith("*") && p.endsWith("*") && p.length > 2)
+            return <em key={j} className="text-gray-500 not-italic">{p.slice(1, -1)}</em>;
+          return p;
+        });
 
       if (line.startsWith("## "))
         return (
-          <h2 key={i} className="text-sm font-bold text-white mt-5 mb-1.5">
+          <h2 key={i} className="text-sm font-bold text-white mt-6 mb-2 pb-1 border-b border-gray-800">
             {inline(line.slice(3))}
           </h2>
         );
       if (line.startsWith("### "))
         return (
-          <h3 key={i} className="text-sm font-semibold text-blue-300 mt-3 mb-1">
+          <h3 key={i} className="text-sm font-semibold text-blue-300 mt-4 mb-0.5">
             {inline(line.slice(4))}
           </h3>
         );
       if (line.startsWith("#### "))
         return (
-          <h4 key={i} className="text-xs font-semibold text-violet-400 mt-2.5 mb-0.5 uppercase tracking-wide">
+          <h4 key={i} className="text-xs font-semibold text-violet-400 mt-3 mb-0.5 uppercase tracking-wide">
             {line.slice(5)}
           </h4>
         );
@@ -202,8 +208,14 @@ export default function LearningPathModal({
             {inline(line.slice(2))}
           </li>
         );
+      if (line.match(/^\d+\. /))
+        return (
+          <li key={i} className="text-gray-400 ml-4 text-xs list-decimal leading-relaxed">
+            {inline(line.replace(/^\d+\. /, ""))}
+          </li>
+        );
       if (line.startsWith("---"))
-        return <hr key={i} className="border-gray-700 my-3" />;
+        return <hr key={i} className="border-gray-800 my-4" />;
       if (line.trim() === "") return <div key={i} className="h-1" />;
       return (
         <p key={i} className="text-gray-400 text-xs leading-relaxed">
@@ -219,7 +231,7 @@ export default function LearningPathModal({
       onClick={onClose}
     >
       <div
-        className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-xl max-h-[82vh] flex flex-col shadow-2xl"
+        className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
