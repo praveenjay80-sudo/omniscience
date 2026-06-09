@@ -146,6 +146,20 @@ Body: `{ apiKey, term, domain, l1, l2?, hoursPerWeek, prerequisites? }`
 
 ---
 
+## Current UI (as of 2026-06-09)
+
+Screenshots of the live app — load these to see what the UI looks like before making changes:
+
+**Main app (domain picker):**
+![Omniscience app screenshot](https://iad.microlink.io/st2shHqyH_EKRA55U_-LioWb7icv-dof_ciToqiOwHIovjbbFRNR4iCfBVQGd9Aut--uE3ToQZ5-vKOyXxQfsg.png)
+
+**Earlier screenshot (original launch):**
+![Omniscience app screenshot v1](https://iad.microlink.io/NvfC9jhfw3Fd5E6AAUucBgiwdFJFH2MsQ2fYelgIAhIjgdrMDCcdST9sYKdPa-B5hSCRmm2sVFd4R8qQmmeEfg.png)
+
+Live app: https://omniscience-production.up.railway.app
+
+---
+
 ## How to Run Locally
 
 ```bash
