@@ -50,32 +50,24 @@ ${noDuplicates}
 ---
 
 ## Level 0 — Before You Begin
-These are not ${term}. These are the prerequisite subjects — math, theory, adjacent tools — you must already have before ${term} makes sense. Each entry should explain why it is a hard dependency.
-
-[all genuinely relevant prerequisite resources]
+These are not ${term}. These are the prerequisite subjects — math, theory, adjacent tools — you must already have before ${term} makes sense. Each entry should explain why it is a hard dependency. List every genuine prerequisite — do not stop at any fixed number.
 
 ---
 
 ## Level 1 — First Contact
-Introductions assuming no prior knowledge of ${term} itself. After this level the reader understands what the field is, why it exists, and what it can do.
-
-[all relevant resources]
+Introductions assuming no prior knowledge of ${term} itself. After this level the reader understands what the field is, why it exists, and what it can do. List every resource that genuinely belongs here — do not stop at 3 or any fixed number.
 
 ---
 
 ## Level 2 — The Foundation
-Core textbooks that rigorously establish the fundamentals. Each one should build directly on what Level 0–1 provided.
-
-[all relevant resources]
+Core textbooks that rigorously establish the fundamentals. Each one should build directly on what Level 0–1 provided. List every resource that genuinely belongs here — do not stop at any fixed number.
 
 ---
 
 ## Level 3 — Working Knowledge
-Resources that take the reader from foundation to practitioner. After this level they can work in the field — solve real problems, read current papers.
+Resources that take the reader from foundation to practitioner. After this level they can work in the field — solve real problems, read current papers. List every resource that genuinely belongs here — do not stop at any fixed number.
 
-[all relevant resources]
-
-Do not truncate any level. Do not repeat any work across levels.`,
+IMPORTANT: Do not truncate any level. There is no cap on resources — include everything that is genuinely relevant. Do not repeat any work across levels.`,
 
     2: `You are the world's most knowledgeable academic guide for ${context}.
 
@@ -88,18 +80,14 @@ ${resourceFormat}
 ---
 
 ## Level 4 — Advanced Depth
-Graduate-level textbooks and advanced monographs that assume full command of the foundations covered in Levels 0–3. The reading list for a PhD student's first two years.
-
-[all relevant resources]
+Graduate-level textbooks and advanced monographs that assume full command of the foundations covered in Levels 0–3. The reading list for a PhD student's first two years. List every resource that genuinely belongs here — do not stop at any fixed number.
 
 ---
 
 ## Level 5 — The Papers Everyone Cites
-The landmark original papers that defined this field — not textbook treatments or tutorials, but the actual papers where the key ideas first appeared. Anyone serious about ${term} has read all of these.
+The landmark original papers that defined this field — not textbook treatments or tutorials, but the actual papers where the key ideas first appeared. Anyone serious about ${term} has read all of these. List every paper that genuinely belongs here — do not stop at any fixed number.
 
-[all relevant papers — do not limit this list]
-
-Do not truncate. Do not repeat any work from Part 1 or from Level 4.`,
+IMPORTANT: Do not truncate any level. There is no cap on resources — include everything genuinely relevant. Do not repeat any work from Part 1 or from Level 4.`,
 
     3: `You are the world's most knowledgeable academic guide for ${context}.
 
@@ -112,16 +100,14 @@ ${resourceFormat}
 ---
 
 ## Level 6 — The Research Frontier
-High-impact recent papers and comprehensive surveys that represent the current state of the art. What active researchers are reading and citing right now.
-
-[all relevant papers]
+High-impact recent papers and comprehensive surveys that represent the current state of the art. What active researchers are reading and citing right now. List every paper that genuinely belongs here — do not stop at any fixed number.
 
 ---
 
 ## The Three That Define the Field
 If someone asks "what are the three works that define this field above all others" — these are them. One sentence each on why each is irreplaceable. These must not duplicate anything already covered above.
 
-Do not truncate. Do not repeat any work from Parts 1 or 2.`,
+IMPORTANT: Do not truncate any level. There is no cap on resources — include everything genuinely relevant. Do not repeat any work from Parts 1 or 2.`,
   };
 
   const prompt = prompts[part] ?? prompts[1];
