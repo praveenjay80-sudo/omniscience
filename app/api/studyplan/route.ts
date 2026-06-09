@@ -28,13 +28,13 @@ export async function POST(req: NextRequest) {
 ### Title — Author(s) (Year) · TAG
 
 Where TAG is exactly one of: CORE, ESSENTIAL, or OPTIONAL
-- CORE: A work every serious student of this field must read — foundational and irreplaceable
-- ESSENTIAL: Very important; a few might skip it depending on their path but most should not
+- CORE: Every serious student must read this — foundational and irreplaceable
+- ESSENTIAL: Very important; most should not skip it
 - OPTIONAL: Valuable supplement for those with extra time or specific interests
 
-One flowing paragraph written as natural prose — no bullet points, no bold labels. Explain what this work does, why it belongs at this specific point in the progression, and what the reader will be able to do after engaging with it that they couldn't before. Mention what they need to already know. End by weaving in search links: [Amazon](https://www.amazon.com/s?k=Title+Author) for books, [Google Scholar](https://scholar.google.com/scholar?q=Title+Author) or [arXiv](https://arxiv.org/search/?query=Title&searchtype=all) for papers. Encode spaces as + in URLs.
+Write 2–3 sentences in plain, direct language — the voice of a mentor talking to a student, not a catalog entry. Explicitly connect this work to what came immediately before it in the progression: what foundation does it assume, what new ground does it cover, what does the student gain that they couldn't do before. Close with what door this work opens — what becomes readable or possible after it. Weave in search links at the end of the paragraph: [Amazon](https://www.amazon.com/s?k=Title+Author) for books, [Google Scholar](https://scholar.google.com/scholar?q=Title+Author) or [arXiv](https://arxiv.org/search/?query=Title&searchtype=all) for papers. Encode spaces as +.
 
-Every resource must be a real, verifiable work — exact title, exact author. If you are not certain a work exists with the exact title and author you have in mind, omit it rather than guess.`;
+Every resource must be a real, verifiable work — exact title, exact author. Omit rather than guess.`;
 
   const part = body.part ?? 1;
   const coveredTitles: string[] = body.coveredTitles ?? [];
@@ -71,7 +71,7 @@ IMPORTANT: Do not truncate any level. There is no cap — include everything gen
 
     2: `You are the world's most knowledgeable academic guide for ${context}.
 
-This is Part 2 of a four-part curriculum. Part 1 covered prerequisites (Level 0), first contact (Level 1), and foundations (Level 2). This part bridges the gap from foundations to advanced depth.
+This is Part 2 of a four-part curriculum. Part 1 covered prerequisites (Level 0), first contact (Level 1), and foundations (Level 2). The student now has the foundation. This part opens with a map of where the field branches, then continues the progression into working knowledge and advanced depth.
 ${noDuplicates}
 Student profile: ${profile}
 
@@ -79,13 +79,23 @@ ${resourceFormat}
 
 ---
 
+## Specializations — Where This Field Branches
+
+The foundation is done. Before going further, map out every major specialization and research direction within ${term}. Write this as a mentor orienting a student who has just finished the foundations and is deciding where to go next. For each specialization, write two plain sentences: what it focuses on and what kind of person or problem it is for. Use this format:
+
+**Specialization Name** — Two sentences on what it focuses on and who it is for.
+
+List every significant specialization. Do not suggest specific books here — just map the landscape so the reader can orient themselves before diving into Levels 3 and 4.
+
+---
+
 ## Level 3 — Working Knowledge
-Resources that take the reader from foundation to practitioner. After this level they can work in the field — solve real problems, read current papers. Each work should build on the foundations established in Levels 0–2. List every resource that genuinely belongs here — do not stop at any fixed number.
+Resources that take the reader from foundation to practitioner. After this level they can work in the field — solve real problems, read current papers. Each work should build on the foundations established in Levels 0–2. Where a resource belongs to a specific specialization, say so naturally in the description. List every resource that genuinely belongs here — do not stop at any fixed number.
 
 ---
 
 ## Level 4 — Advanced Depth
-Graduate-level textbooks and advanced monographs that assume full command of Levels 0–3. The reading list for a PhD student's first two years. List every resource that genuinely belongs here — do not stop at any fixed number.
+Graduate-level textbooks and advanced monographs that assume full command of Levels 0–3. The reading list for a PhD student's first two years. Where a resource belongs to a specific specialization, say so naturally in the description. List every resource that genuinely belongs here — do not stop at any fixed number.
 
 IMPORTANT: Do not truncate any level. There is no cap — include everything genuinely relevant. Do not repeat any work from Part 1 or across levels.`,
 

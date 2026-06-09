@@ -360,6 +360,17 @@ export default function LearningPathModal({
       if (line.startsWith("---"))
         return <hr key={i} className="border-gray-800 my-4" />;
       if (line.trim() === "") return <div key={i} className="h-1" />;
+      // Specialization line: **Name** — description
+      const specMatch = line.match(/^\*\*([^*]+)\*\*\s*—\s*(.+)$/);
+      if (specMatch)
+        return (
+          <div key={i} className="flex gap-2 mt-1.5 items-start">
+            <span className="text-[10px] bg-violet-900/50 text-violet-300 border border-violet-700/50 px-2 py-0.5 rounded font-medium whitespace-nowrap flex-shrink-0 mt-0.5">
+              {specMatch[1]}
+            </span>
+            <p className="text-gray-400 text-xs leading-relaxed">{inline(specMatch[2])}</p>
+          </div>
+        );
       return (
         <p key={i} className="text-gray-400 text-xs leading-relaxed">
           {inline(line)}
