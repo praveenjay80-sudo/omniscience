@@ -109,11 +109,13 @@ Include every resource that genuinely belongs — do not cap or truncate any lev
 
   const stream = new ReadableStream({
     async start(controller) {
+      // Write one byte immediately so Railway's proxy doesn't close the idle connection
+      // during Anthropic's initial processing delay.
+      controller.enqueue(encoder.encode(" "));
       try {
         const anthropicStream = await client.messages.stream({
           model: "claude-sonnet-4-6",
           max_tokens: 8192,
-          thinking: { type: "adaptive" },
           messages: [{ role: "user", content: prompt }],
         });
 

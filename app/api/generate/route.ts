@@ -47,11 +47,11 @@ List all broad branches of "${l1}". Return ONLY a raw JSON array of strings. No 
 
   const stream = new ReadableStream({
     async start(controller) {
+      controller.enqueue(encoder.encode(" "));
       try {
         const anthropicStream = await client.messages.stream({
           model: "claude-sonnet-4-6",
           max_tokens: 8192,
-          thinking: { type: "adaptive" },
           messages: [{ role: "user", content: prompt }],
         });
 

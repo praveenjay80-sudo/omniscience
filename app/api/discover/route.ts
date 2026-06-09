@@ -133,11 +133,11 @@ export async function POST(req: NextRequest) {
 
   const stream = new ReadableStream({
     async start(controller) {
+      controller.enqueue(encoder.encode(" "));
       try {
         const anthropicStream = await client.messages.stream({
           model: "claude-sonnet-4-6",
           max_tokens: 8192,
-          thinking: { type: "adaptive" },
           messages: [{ role: "user", content: prompt }],
         });
 

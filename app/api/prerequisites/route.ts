@@ -45,11 +45,11 @@ Rules:
 
   const stream = new ReadableStream({
     async start(controller) {
+      controller.enqueue(encoder.encode(" "));
       try {
         const anthropicStream = await client.messages.stream({
           model: "claude-sonnet-4-6",
           max_tokens: 4096,
-          thinking: { type: "adaptive" },
           messages: [{ role: "user", content: prompt }],
         });
 
