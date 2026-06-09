@@ -116,13 +116,17 @@ export default function LearningPathModal({
     }
   }
 
-  async function streamPart(part: number, onChunk: (t: string) => void): Promise<string> {
+  function extractTitles(text: string): string[] {
+    return (text.match(/^### .+$/gm) ?? []).map((l) => l.replace(/^### /, "").trim());
+  }
+
+  async function streamPart(part: number, coveredTitles: string[], onChunk: (t: string) => void): Promise<string> {
     const res = await fetch("/api/studyplan", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         apiKey, term, domain, l1, l2,
-        hoursPerWeek, background, goal, learningStyle, part,
+        hoursPerWeek, background, goal, learningStyle, part, coveredTitles,
       }),
     });
     if (!res.ok) throw new Error(`Server error ${res.status}`);
@@ -153,15 +157,17 @@ export default function LearningPathModal({
 
     const sep = "\n\n---\n\n";
     try {
-      const part1 = await streamPart(1, (t) => setPlanText(t));
+      const part1 = await streamPart(1, [], (t) => setPlanText(t));
       if (part1.includes("__ERROR__:")) { setPlanText(part1); return; }
 
+      const titles1 = extractTitles(part1);
       setPlanText(part1 + sep);
-      const part2 = await streamPart(2, (t) => setPlanText(part1 + sep + t));
+      const part2 = await streamPart(2, titles1, (t) => setPlanText(part1 + sep + t));
       if (part2.includes("__ERROR__:")) { setPlanText(part1 + sep + part2); return; }
 
+      const titles2 = [...titles1, ...extractTitles(part2)];
       setPlanText(part1 + sep + part2 + sep);
-      const part3 = await streamPart(3, (t) => setPlanText(part1 + sep + part2 + sep + t));
+      const part3 = await streamPart(3, titles2, (t) => setPlanText(part1 + sep + part2 + sep + t));
       if (part3.includes("__ERROR__:")) { setPlanText(part1 + sep + part2 + sep + part3); return; }
 
       const full = part1 + sep + part2 + sep + part3;
