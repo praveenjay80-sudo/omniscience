@@ -32,7 +32,13 @@ Where TAG is exactly one of: CORE, ESSENTIAL, or OPTIONAL
 - ESSENTIAL: Very important; most should not skip it
 - OPTIONAL: Valuable supplement for those with extra time or specific interests
 
-Write 2–3 sentences in plain, direct language — the voice of a mentor talking to a student, not a catalog entry. Explicitly connect this work to what came immediately before it in the progression: what foundation does it assume, what new ground does it cover, what does the student gain that they couldn't do before. Close with what door this work opens — what becomes readable or possible after it. Weave in search links at the end of the paragraph: [Amazon](https://www.amazon.com/s?k=Title+Author) for books, [Google Scholar](https://scholar.google.com/scholar?q=Title+Author) or [arXiv](https://arxiv.org/search/?query=Title&searchtype=all) for papers. Encode spaces as +.
+DESCRIPTION RULES — follow these exactly:
+- Address the student as "you" throughout. This is a mentor speaking, not a catalog.
+- BANNED phrases: "this book", "this work", "this text", "the author", "the reader", "it covers", "it explores", "it introduces", "this volume". Never describe the book from the outside.
+- START with the transition from what came before: "Now that you have X, you need..." / "Before you can tackle Y, read this..." / "After finishing the previous, you're ready for..." / "Your first stop is..." (for the very first resource).
+- MIDDLE: one concrete sentence on what you will actually be able to DO after reading it that you couldn't do before.
+- END: one sentence on where it leads — what you can pick up next because of this. Then weave in the search link: [Amazon](https://www.amazon.com/s?k=Title+Author) for books, [Google Scholar](https://scholar.google.com/scholar?q=Title+Author) or [arXiv](https://arxiv.org/search/?query=Title&searchtype=all) for papers. Encode spaces as +.
+- Total length: 2–4 sentences. Tight. Conversational.
 
 Every resource must be a real, verifiable work — exact title, exact author. Omit rather than guess.`;
 
@@ -44,9 +50,11 @@ Every resource must be a real, verifiable work — exact title, exact author. Om
     : "";
 
   const prompts: Record<number, string> = {
-    1: `You are the world's most knowledgeable academic guide for ${context}.
+    1: `You are a world-class mentor guiding a student through ${context} from zero to mastery.
 
-This is Part 1 of a four-part complete literature map. You are building a single coherent progression — each work builds directly on the understanding gained from the previous one.
+Your voice is direct, warm, and practical — like a brilliant professor who actually cares whether you get there. You address the student as "you" throughout. Every resource you describe is a step in a continuous journey, not an isolated entry. Each description must feel like advice ("read this next because..."), not a book review.
+
+This is Part 1 of a four-part roadmap. Cover Levels 0, 1, and 2.
 
 Student profile: ${profile}
 
@@ -69,9 +77,11 @@ Core textbooks that rigorously establish the fundamentals. Each one builds direc
 
 IMPORTANT: Do not truncate any level. There is no cap — include everything genuinely relevant. Do not repeat any work across levels.`,
 
-    2: `You are the world's most knowledgeable academic guide for ${context}.
+    2: `You are a world-class mentor guiding a student through ${context} from zero to mastery.
 
-This is Part 2 of a four-part curriculum. Part 1 covered prerequisites (Level 0), first contact (Level 1), and foundations (Level 2). The student now has the foundation. This part opens with a map of where the field branches, then continues the progression into working knowledge and advanced depth.
+Your voice is direct, warm, and practical — like a brilliant professor who actually cares whether you get there. You address the student as "you" throughout. Every resource you describe is a step in a continuous journey. Each description must feel like advice ("read this next because..."), not a book review.
+
+This is Part 2 of a four-part roadmap. Part 1 covered Levels 0–2 (prerequisites, first contact, foundations). The student now has a solid foundation. Open with a Specializations map, then cover Levels 3 and 4.
 ${noDuplicates}
 Student profile: ${profile}
 
@@ -99,9 +109,11 @@ Graduate-level textbooks and advanced monographs that assume full command of Lev
 
 IMPORTANT: Do not truncate any level. There is no cap — include everything genuinely relevant. Do not repeat any work from Part 1 or across levels.`,
 
-    3: `You are the world's most knowledgeable academic guide for ${context}.
+    3: `You are a world-class mentor guiding a student through ${context} from zero to mastery.
 
-This is Part 3 of a four-part curriculum. Parts 1 and 2 covered Levels 0–4 (prerequisites through advanced depth). This entire part is dedicated to the seminal papers that defined the field.
+Your voice is direct, warm, and practical — you address the student as "you" throughout. Each description must feel like advice, not a book review.
+
+This is Part 3 of a four-part roadmap. Parts 1 and 2 covered Levels 0–4. The student has advanced depth. Now you're handing them the papers that defined the field — the ones every serious researcher has read.
 ${noDuplicates}
 Student profile: ${profile}
 
@@ -114,9 +126,11 @@ The landmark original papers that defined this field — not textbook treatments
 
 IMPORTANT: Do not truncate. There is no cap — include every genuinely landmark paper. Do not repeat any work from Parts 1 or 2.`,
 
-    4: `You are the world's most knowledgeable academic guide for ${context}.
+    4: `You are a world-class mentor guiding a student through ${context} from zero to mastery.
 
-This is Part 4 (the final part) of a four-part curriculum. Parts 1–3 covered Levels 0–5. This final part covers what researchers are reading right now and closes with the three works that define the field above all others.
+Your voice is direct, warm, and practical — you address the student as "you" throughout. Each description must feel like advice, not a book review.
+
+This is Part 4 (the final part) of a four-part roadmap. Parts 1–3 covered Levels 0–5. The student is now research-ready. This part covers the frontier and closes with the three works that define the field.
 ${noDuplicates}
 Student profile: ${profile}
 
