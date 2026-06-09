@@ -6,10 +6,16 @@ import { VerifyStatus, verifyAll } from "@/lib/wikipedia";
 import SearchLinks from "@/components/SearchLinks";
 import ExplainModal from "@/components/ExplainModal";
 import VerifyBadge from "@/components/VerifyBadge";
+import LearningPathModal from "@/components/LearningPathModal";
 
 type Phase = "pick-domain" | "pick-l1" | "pick-l2" | "view-l3";
 
 interface ExplainTarget {
+  term: string;
+  l2?: string;
+}
+
+interface LearningPathTarget {
   term: string;
   l2?: string;
 }
@@ -70,6 +76,7 @@ export default function Home() {
   const [error, setError] = useState("");
 
   const [explainTarget, setExplainTarget] = useState<ExplainTarget | null>(null);
+  const [learningPathTarget, setLearningPathTarget] = useState<LearningPathTarget | null>(null);
 
   // verification state: term → status / url
   const [verifyMap, setVerifyMap] = useState<Record<string, VerifyStatus>>({});
@@ -262,7 +269,12 @@ export default function Home() {
             onClick={() => {
               if (!confirm("Delete all cached taxonomy and Wikipedia results?")) return;
               const keys = Object.keys(localStorage).filter(
-                (k) => k.startsWith("omni_l2::") || k.startsWith("omni_l3::") || k.startsWith("omni_wiki::")
+                (k) =>
+                  k.startsWith("omni_l2::") ||
+                  k.startsWith("omni_l3::") ||
+                  k.startsWith("omni_wiki::") ||
+                  k.startsWith("omni_prereq::") ||
+                  k.startsWith("omni_plan::")
               );
               keys.forEach((k) => localStorage.removeItem(k));
               goTo("pick-domain");
@@ -366,10 +378,16 @@ export default function Home() {
                       <VerifyBadge status={verifyMap[l2]} url={verifyUrlMap[l2]} />
                     </div>
                     <SearchLinks term={l2} />
-                    <button onClick={() => setExplainTarget({ term: l2 })}
-                      className="mt-2 text-xs bg-gray-800 hover:bg-yellow-900 hover:text-yellow-300 text-gray-400 px-3 py-1 rounded-lg transition-colors border border-gray-700 hover:border-yellow-700">
-                      Explain Me
-                    </button>
+                    <div className="mt-2 flex gap-2">
+                      <button onClick={() => setExplainTarget({ term: l2 })}
+                        className="text-xs bg-gray-800 hover:bg-yellow-900 hover:text-yellow-300 text-gray-400 px-3 py-1 rounded-lg transition-colors border border-gray-700 hover:border-yellow-700">
+                        Explain Me
+                      </button>
+                      <button onClick={() => setLearningPathTarget({ term: l2 })}
+                        className="text-xs bg-gray-800 hover:bg-blue-900 hover:text-blue-300 text-gray-400 px-3 py-1 rounded-lg transition-colors border border-gray-700 hover:border-blue-700">
+                        Learning Path
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -407,10 +425,16 @@ export default function Home() {
                       <VerifyBadge status={verifyMap[l3]} url={verifyUrlMap[l3]} />
                     </div>
                     <SearchLinks term={l3} />
-                    <button onClick={() => setExplainTarget({ term: l3, l2: selectedL2 })}
-                      className="mt-2 text-xs bg-gray-800 hover:bg-yellow-900 hover:text-yellow-300 text-gray-400 px-3 py-1 rounded-lg transition-colors border border-gray-700 hover:border-yellow-700">
-                      Explain Me
-                    </button>
+                    <div className="mt-2 flex gap-2">
+                      <button onClick={() => setExplainTarget({ term: l3, l2: selectedL2 })}
+                        className="text-xs bg-gray-800 hover:bg-yellow-900 hover:text-yellow-300 text-gray-400 px-3 py-1 rounded-lg transition-colors border border-gray-700 hover:border-yellow-700">
+                        Explain Me
+                      </button>
+                      <button onClick={() => setLearningPathTarget({ term: l3, l2: selectedL2 })}
+                        className="text-xs bg-gray-800 hover:bg-blue-900 hover:text-blue-300 text-gray-400 px-3 py-1 rounded-lg transition-colors border border-gray-700 hover:border-blue-700">
+                        Learning Path
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -428,6 +452,17 @@ export default function Home() {
           l2={explainTarget.l2 ?? selectedL2}
           apiKey={apiKey}
           onClose={() => setExplainTarget(null)}
+        />
+      )}
+
+      {learningPathTarget && (
+        <LearningPathModal
+          term={learningPathTarget.term}
+          domain={selectedDomain}
+          l1={selectedL1}
+          l2={learningPathTarget.l2}
+          apiKey={apiKey}
+          onClose={() => setLearningPathTarget(null)}
         />
       )}
     </div>
