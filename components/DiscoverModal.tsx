@@ -17,10 +17,12 @@ const FEATURE_GROUPS: { title: string; features: FeatureDef[] }[] = [
       { id: "insight", label: "1% Insight", desc: "The one aha-moment that makes it all click" },
       { id: "mentalmodels", label: "Mental Models", desc: "How experts actually think about this" },
       { id: "conceptdna", label: "Concept DNA", desc: "The irreducible atomic building blocks" },
+      { id: "depmap", label: "Dependency Map", desc: "What to learn in what order" },
       { id: "originstory", label: "Origin Story", desc: "Who invented it and why" },
       { id: "misconceptions", label: "Misconceptions", desc: "What most learners get wrong" },
       { id: "schools", label: "Schools of Thought", desc: "Intellectual camps and debates" },
       { id: "elevator", label: "Elevator Pitch", desc: "How to explain it to anyone" },
+      { id: "longread", label: "The Long Read", desc: "1500-word essay on the key idea" },
     ],
   },
   {
@@ -31,6 +33,7 @@ const FEATURE_GROUPS: { title: string; features: FeatureDef[] }[] = [
       { id: "papers", label: "Paper Trail", desc: "Foundational academic papers" },
       { id: "semsimaltimeline", label: "Seminal Timeline", desc: "Landmark works by year" },
       { id: "hiddengems", label: "Hidden Gems", desc: "Obscure but brilliant resources" },
+      { id: "annotatedbib", label: "Annotated Bibliography", desc: "15+ works with full scholarly annotations" },
       { id: "flashcards", label: "Flashcards", desc: "10 Anki-style Q&A cards" },
     ],
   },
@@ -55,6 +58,7 @@ const FEATURE_GROUPS: { title: string; features: FeatureDef[] }[] = [
   {
     title: "TEST YOURSELF",
     features: [
+      { id: "phdexam", label: "PhD Qualifying Exam", desc: "Reading list, essay Qs, and problem sets" },
       { id: "quiz", label: "Quiz Me", desc: "5 questions to test your knowledge" },
       { id: "feynman", label: "Feynman Test", desc: "Write it, Claude grades it" },
       { id: "socratic", label: "Socratic Dialogue", desc: "Claude asks, you answer" },
