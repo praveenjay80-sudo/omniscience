@@ -25,12 +25,16 @@ export async function POST(req: NextRequest) {
 
   const resourceFormat = `For each resource use this format:
 
-### Title — Author(s) (Year) · TAG
+### Title — Author(s) (Year) · TAG · SPECIALIZATION
 
 Where TAG is exactly one of: CORE, ESSENTIAL, or OPTIONAL
 - CORE: Every serious student must read this — foundational and irreplaceable
 - ESSENTIAL: Very important; most should not skip it
 - OPTIONAL: Valuable supplement for those with extra time or specific interests
+
+Where SPECIALIZATION is:
+- For Level 3 and above: the exact name of the specialization from the Specializations map this work primarily serves, or "General" if it applies to all paths equally. Use the exact specialization name from the map — no paraphrasing.
+- For Levels 0, 1, and 2: omit the · SPECIALIZATION part entirely. Write only · TAG.
 
 DESCRIPTION RULES — follow these exactly:
 - Address the student as "you" throughout. This is a mentor speaking, not a catalog.

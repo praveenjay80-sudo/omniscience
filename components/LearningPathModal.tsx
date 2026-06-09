@@ -295,9 +295,10 @@ export default function LearningPathModal({
         );
       if (line.startsWith("### ")) {
         const raw = line.slice(4).trim();
-        const tagMatch = raw.match(/\s·\s(CORE|ESSENTIAL|OPTIONAL)$/);
-        const tag = tagMatch ? tagMatch[1] : null;
-        const displayTitle = tag ? raw.slice(0, -tagMatch![0].length) : raw;
+        const tagSpecMatch = raw.match(/\s·\s(CORE|ESSENTIAL|OPTIONAL)(?:\s·\s(.+))?$/);
+        const tag = tagSpecMatch ? tagSpecMatch[1] : null;
+        const spec = tagSpecMatch ? (tagSpecMatch[2] ?? null) : null;
+        const displayTitle = tagSpecMatch ? raw.slice(0, -tagSpecMatch[0].length) : raw;
         const tagColors: Record<string, string> = {
           CORE: "bg-red-900/60 text-red-300 border-red-700/50",
           ESSENTIAL: "bg-blue-900/60 text-blue-300 border-blue-700/50",
@@ -308,10 +309,15 @@ export default function LearningPathModal({
         const prereqContent = bookPrereqs[raw];
         return (
           <React.Fragment key={i}>
-            <div className="flex items-baseline gap-2 mt-4 mb-0.5">
-              <h3 className="text-sm font-semibold text-blue-300 flex-1">
+            <div className="flex items-baseline gap-1.5 mt-4 mb-0.5 flex-wrap">
+              <h3 className="text-sm font-semibold text-blue-300 flex-1 min-w-0">
                 {inline(displayTitle)}
               </h3>
+              {spec && spec !== "General" && (
+                <span className="text-[10px] bg-violet-900/50 text-violet-300 border border-violet-700/50 px-1.5 py-0.5 rounded font-medium whitespace-nowrap flex-shrink-0">
+                  {spec}
+                </span>
+              )}
               {tag && (
                 <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium flex-shrink-0 ${tagColors[tag]}`}>
                   {tag}
