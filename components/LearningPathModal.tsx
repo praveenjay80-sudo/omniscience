@@ -174,7 +174,12 @@ export default function LearningPathModal({
       const part3 = await streamPart(3, titles2, (t) => setPlanText(part1 + sep + part2 + sep + t));
       if (part3.includes("__ERROR__:")) { setPlanText(part1 + sep + part2 + sep + part3); return; }
 
-      const full = part1 + sep + part2 + sep + part3;
+      const titles3 = [...titles2, ...extractTitles(part3)];
+      setPlanText(part1 + sep + part2 + sep + part3 + sep);
+      const part4 = await streamPart(4, titles3, (t) => setPlanText(part1 + sep + part2 + sep + part3 + sep + t));
+      if (part4.includes("__ERROR__:")) { setPlanText(part1 + sep + part2 + sep + part3 + sep + part4); return; }
+
+      const full = part1 + sep + part2 + sep + part3 + sep + part4;
       localStorage.setItem(key, full);
     } catch (err) {
       setPlanText((prev) => prev + `\n\nError: ${err instanceof Error ? err.message : "Failed"}`);
@@ -615,7 +620,7 @@ export default function LearningPathModal({
               {planLoading && !planText && (
                 <div className="flex items-center gap-2 text-gray-400 text-sm py-4">
                   <span className="w-4 h-4 border border-gray-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
-                  Building Levels 0–3…
+                  Building Levels 0–2…
                 </div>
               )}
 
@@ -625,9 +630,13 @@ export default function LearningPathModal({
                   {planLoading && (
                     <div className="flex items-center gap-2 text-gray-400 text-xs mt-4">
                       <span className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
-                      {planText.includes("Level 4") || planText.includes("Level 5")
+                      {planText.includes("Level 6") || planText.includes("The Three That Define")
                         ? "Loading research frontier and canon…"
-                        : "Loading advanced depth and seminal papers…"}
+                        : planText.includes("Level 5") || planText.includes("Papers Everyone Cites")
+                        ? "Loading research frontier and canon…"
+                        : planText.includes("Level 3") || planText.includes("Level 4")
+                        ? "Loading seminal papers…"
+                        : "Loading working knowledge and advanced depth…"}
                     </div>
                   )}
                   {!planLoading && (

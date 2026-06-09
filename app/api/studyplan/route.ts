@@ -46,7 +46,7 @@ Every resource must be a real, verifiable work — exact title, exact author. If
   const prompts: Record<number, string> = {
     1: `You are the world's most knowledgeable academic guide for ${context}.
 
-This is Part 1 of a three-part complete literature map. You are building a single coherent progression — each work should build directly on the understanding gained from the previous one. The curriculum must flow like a guided journey, not a random list.
+This is Part 1 of a four-part complete literature map. You are building a single coherent progression — each work builds directly on the understanding gained from the previous one.
 
 Student profile: ${profile}
 
@@ -60,23 +60,18 @@ These are not ${term}. These are the prerequisite subjects — math, theory, adj
 ---
 
 ## Level 1 — First Contact
-Introductions assuming no prior knowledge of ${term} itself. After this level the reader understands what the field is, why it exists, and what it can do. List every resource that genuinely belongs here — do not stop at 3 or any fixed number.
+Introductions assuming no prior knowledge of ${term} itself. After this level the reader understands what the field is, why it exists, and what it can do. List every resource that genuinely belongs here — do not stop at any fixed number.
 
 ---
 
 ## Level 2 — The Foundation
-Core textbooks that rigorously establish the fundamentals. Each one should build directly on what Level 0–1 provided. List every resource that genuinely belongs here — do not stop at any fixed number.
+Core textbooks that rigorously establish the fundamentals. Each one builds directly on what Level 0–1 provided. List every resource that genuinely belongs here — do not stop at any fixed number.
 
----
-
-## Level 3 — Working Knowledge
-Resources that take the reader from foundation to practitioner. After this level they can work in the field — solve real problems, read current papers. List every resource that genuinely belongs here — do not stop at any fixed number.
-
-IMPORTANT: Do not truncate any level. There is no cap on resources — include everything that is genuinely relevant. Do not repeat any work across levels.`,
+IMPORTANT: Do not truncate any level. There is no cap — include everything genuinely relevant. Do not repeat any work across levels.`,
 
     2: `You are the world's most knowledgeable academic guide for ${context}.
 
-This is Part 2 of a three-part curriculum. Part 1 already covered prerequisite subjects, introductions, foundations, and working-knowledge texts. This part continues the progression into graduate depth and the seminal papers. Every resource here should build on what Part 1 established.
+This is Part 2 of a four-part curriculum. Part 1 covered prerequisites (Level 0), first contact (Level 1), and foundations (Level 2). This part bridges the gap from foundations to advanced depth.
 ${noDuplicates}
 Student profile: ${profile}
 
@@ -84,19 +79,34 @@ ${resourceFormat}
 
 ---
 
+## Level 3 — Working Knowledge
+Resources that take the reader from foundation to practitioner. After this level they can work in the field — solve real problems, read current papers. Each work should build on the foundations established in Levels 0–2. List every resource that genuinely belongs here — do not stop at any fixed number.
+
+---
+
 ## Level 4 — Advanced Depth
-Graduate-level textbooks and advanced monographs that assume full command of the foundations covered in Levels 0–3. The reading list for a PhD student's first two years. List every resource that genuinely belongs here — do not stop at any fixed number.
+Graduate-level textbooks and advanced monographs that assume full command of Levels 0–3. The reading list for a PhD student's first two years. List every resource that genuinely belongs here — do not stop at any fixed number.
+
+IMPORTANT: Do not truncate any level. There is no cap — include everything genuinely relevant. Do not repeat any work from Part 1 or across levels.`,
+
+    3: `You are the world's most knowledgeable academic guide for ${context}.
+
+This is Part 3 of a four-part curriculum. Parts 1 and 2 covered Levels 0–4 (prerequisites through advanced depth). This entire part is dedicated to the seminal papers that defined the field.
+${noDuplicates}
+Student profile: ${profile}
+
+${resourceFormat}
 
 ---
 
 ## Level 5 — The Papers Everyone Cites
-The landmark original papers that defined this field — not textbook treatments or tutorials, but the actual papers where the key ideas first appeared. Anyone serious about ${term} has read all of these. List every paper that genuinely belongs here — do not stop at any fixed number.
+The landmark original papers that defined this field — not textbook treatments, not tutorials, but the actual papers where the key ideas first appeared. Anyone serious about ${term} has read all of these. List every paper that genuinely belongs here — do not stop at any fixed number. Be exhaustive: include every paper a PhD student in this field would be expected to know.
 
-IMPORTANT: Do not truncate any level. There is no cap on resources — include everything genuinely relevant. Do not repeat any work from Part 1 or from Level 4.`,
+IMPORTANT: Do not truncate. There is no cap — include every genuinely landmark paper. Do not repeat any work from Parts 1 or 2.`,
 
-    3: `You are the world's most knowledgeable academic guide for ${context}.
+    4: `You are the world's most knowledgeable academic guide for ${context}.
 
-This is Part 3 of a three-part curriculum. Parts 1 and 2 already covered Levels 0–5. This final part covers the current research frontier and closes with the three works that above all others define the field.
+This is Part 4 (the final part) of a four-part curriculum. Parts 1–3 covered Levels 0–5. This final part covers what researchers are reading right now and closes with the three works that define the field above all others.
 ${noDuplicates}
 Student profile: ${profile}
 
@@ -105,14 +115,14 @@ ${resourceFormat}
 ---
 
 ## Level 6 — The Research Frontier
-High-impact recent papers and comprehensive surveys that represent the current state of the art. What active researchers are reading and citing right now. List every paper that genuinely belongs here — do not stop at any fixed number.
+High-impact recent papers and comprehensive surveys representing the current state of the art. What active researchers are reading and citing right now. List every paper that genuinely belongs here — do not stop at any fixed number.
 
 ---
 
 ## The Three That Define the Field
 If someone asks "what are the three works that define this field above all others" — these are them. One sentence each on why each is irreplaceable. These must not duplicate anything already covered above.
 
-IMPORTANT: Do not truncate any level. There is no cap on resources — include everything genuinely relevant. Do not repeat any work from Parts 1 or 2.`,
+IMPORTANT: Do not truncate any level. There is no cap — include everything genuinely relevant. Do not repeat any work from Parts 1, 2, or 3.`,
   };
 
   const prompt = prompts[part] ?? prompts[1];
