@@ -25,7 +25,12 @@ export async function POST(req: NextRequest) {
 
   const resourceFormat = `For each resource use this format:
 
-### Title — Author(s) (Year)
+### Title — Author(s) (Year) · TAG
+
+Where TAG is exactly one of: CORE, ESSENTIAL, or OPTIONAL
+- CORE: A work every serious student of this field must read — foundational and irreplaceable
+- ESSENTIAL: Very important; a few might skip it depending on their path but most should not
+- OPTIONAL: Valuable supplement for those with extra time or specific interests
 
 One flowing paragraph written as natural prose — no bullet points, no bold labels. Explain what this work does, why it belongs at this specific point in the progression, and what the reader will be able to do after engaging with it that they couldn't before. Mention what they need to already know. End by weaving in search links: [Amazon](https://www.amazon.com/s?k=Title+Author) for books, [Google Scholar](https://scholar.google.com/scholar?q=Title+Author) or [arXiv](https://arxiv.org/search/?query=Title&searchtype=all) for papers. Encode spaces as + in URLs.
 

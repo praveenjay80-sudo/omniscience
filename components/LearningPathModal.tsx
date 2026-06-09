@@ -57,6 +57,10 @@ export default function LearningPathModal({
   const [planText, setPlanText] = useState("");
   const [planLoading, setPlanLoading] = useState(false);
 
+  const [expandedBooks, setExpandedBooks] = useState<Set<string>>(new Set());
+  const [bookPrereqs, setBookPrereqs] = useState<Record<string, string>>({});
+  const [bookPrereqLoading, setBookPrereqLoading] = useState<string | null>(null);
+
   useEffect(() => {
     fetchPrerequisites();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -179,6 +183,86 @@ export default function LearningPathModal({
     }
   }
 
+  async function fetchBookPrereqs(title: string) {
+    if (expandedBooks.has(title)) {
+      setExpandedBooks((prev) => {
+        const next = new Set(prev);
+        next.delete(title);
+        return next;
+      });
+      return;
+    }
+    setExpandedBooks((prev) => new Set([...prev, title]));
+    if (bookPrereqs[title]) return;
+    setBookPrereqLoading(title);
+    try {
+      const res = await fetch("/api/bookprereqs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey, title, term, domain, l1 }),
+      });
+      if (!res.ok) throw new Error(`Server error ${res.status}`);
+      if (!res.body) throw new Error("Empty response");
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let text = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        text += decoder.decode(value, { stream: true });
+        setBookPrereqs((prev) => ({ ...prev, [title]: text }));
+      }
+    } catch (err) {
+      setBookPrereqs((prev) => ({
+        ...prev,
+        [title]: `Error: ${err instanceof Error ? err.message : "Failed"}`,
+      }));
+    } finally {
+      setBookPrereqLoading(null);
+    }
+  }
+
+  function renderPrereqMarkdown(text: string) {
+    return text.split("\n").map((line, i) => {
+      if (line.trim() === "") return <div key={i} className="h-0.5" />;
+      const tagMatch = line.match(/\[(CORE|ESSENTIAL|OPTIONAL)\]/);
+      const tag = tagMatch ? tagMatch[1] : null;
+      const tagColors: Record<string, string> = {
+        CORE: "bg-red-900/60 text-red-300 border-red-700/50",
+        ESSENTIAL: "bg-blue-900/60 text-blue-300 border-blue-700/50",
+        OPTIONAL: "bg-gray-800 text-gray-400 border-gray-700",
+      };
+      const cleanLine = tag ? line.replace(` [${tag}]`, "") : line;
+      const parts = cleanLine.split(/(\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\))/g).map((p, j) => {
+        if (p.startsWith("**") && p.endsWith("**"))
+          return (
+            <strong key={j} className="text-gray-300 font-medium">
+              {p.slice(2, -2)}
+            </strong>
+          );
+        const lm = p.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+        if (lm)
+          return (
+            <a key={j} href={lm[2]} target="_blank" rel="noopener noreferrer"
+              className="text-blue-500 hover:text-blue-400 underline underline-offset-2">
+              {lm[1]}
+            </a>
+          );
+        return p;
+      });
+      return (
+        <p key={i} className="text-gray-500 text-xs leading-relaxed flex items-start gap-1.5 flex-wrap">
+          {tag && (
+            <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium flex-shrink-0 ${tagColors[tag]}`}>
+              {tag}
+            </span>
+          )}
+          {parts}
+        </p>
+      );
+    });
+  }
+
   function renderMarkdown(text: string) {
     return text.split("\n").map((line, i) => {
       const inline = (s: string): React.ReactNode[] =>
@@ -204,12 +288,52 @@ export default function LearningPathModal({
             {inline(line.slice(3))}
           </h2>
         );
-      if (line.startsWith("### "))
+      if (line.startsWith("### ")) {
+        const raw = line.slice(4).trim();
+        const tagMatch = raw.match(/\s·\s(CORE|ESSENTIAL|OPTIONAL)$/);
+        const tag = tagMatch ? tagMatch[1] : null;
+        const displayTitle = tag ? raw.slice(0, -tagMatch![0].length) : raw;
+        const tagColors: Record<string, string> = {
+          CORE: "bg-red-900/60 text-red-300 border-red-700/50",
+          ESSENTIAL: "bg-blue-900/60 text-blue-300 border-blue-700/50",
+          OPTIONAL: "bg-gray-800 text-gray-400 border-gray-700",
+        };
+        const isExpanded = expandedBooks.has(raw);
+        const isLoading = bookPrereqLoading === raw;
+        const prereqContent = bookPrereqs[raw];
         return (
-          <h3 key={i} className="text-sm font-semibold text-blue-300 mt-4 mb-0.5">
-            {inline(line.slice(4))}
-          </h3>
+          <React.Fragment key={i}>
+            <div className="flex items-baseline gap-2 mt-4 mb-0.5">
+              <h3 className="text-sm font-semibold text-blue-300 flex-1">
+                {inline(displayTitle)}
+              </h3>
+              {tag && (
+                <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium flex-shrink-0 ${tagColors[tag]}`}>
+                  {tag}
+                </span>
+              )}
+              <button
+                onClick={() => fetchBookPrereqs(raw)}
+                className="text-[10px] text-gray-700 hover:text-gray-400 transition-colors whitespace-nowrap flex-shrink-0"
+              >
+                {isLoading ? "…" : isExpanded ? "▲ prereqs" : "↳ prereqs"}
+              </button>
+            </div>
+            {isExpanded && (
+              <div className="ml-3 mt-1 mb-3 pl-3 border-l-2 border-gray-800 py-1.5 space-y-1">
+                {isLoading ? (
+                  <div className="flex items-center gap-1.5 text-gray-600 text-xs">
+                    <span className="w-3 h-3 border border-gray-600 border-t-transparent rounded-full animate-spin" />
+                    Loading prerequisites…
+                  </div>
+                ) : prereqContent ? (
+                  renderPrereqMarkdown(prereqContent)
+                ) : null}
+              </div>
+            )}
+          </React.Fragment>
         );
+      }
       if (line.startsWith("#### "))
         return (
           <h4 key={i} className="text-xs font-semibold text-violet-400 mt-3 mb-0.5 uppercase tracking-wide">
