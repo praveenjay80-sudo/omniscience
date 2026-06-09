@@ -151,18 +151,20 @@ export default function LearningPathModal({
     setPlanLoading(true);
     setPlanText("");
 
+    const sep = "\n\n---\n\n";
     try {
-      // Part 1: Levels 0–3
       const part1 = await streamPart(1, (t) => setPlanText(t));
       if (part1.includes("__ERROR__:")) { setPlanText(part1); return; }
 
-      // Part 2: Levels 4–6 + Canon (auto-chained)
-      const divider = "\n\n---\n\n";
-      setPlanText(part1 + divider);
-      const part2 = await streamPart(2, (t) => setPlanText(part1 + divider + t));
-      if (part2.includes("__ERROR__:")) { setPlanText(part1 + divider + part2); return; }
+      setPlanText(part1 + sep);
+      const part2 = await streamPart(2, (t) => setPlanText(part1 + sep + t));
+      if (part2.includes("__ERROR__:")) { setPlanText(part1 + sep + part2); return; }
 
-      const full = part1 + divider + part2;
+      setPlanText(part1 + sep + part2 + sep);
+      const part3 = await streamPart(3, (t) => setPlanText(part1 + sep + part2 + sep + t));
+      if (part3.includes("__ERROR__:")) { setPlanText(part1 + sep + part2 + sep + part3); return; }
+
+      const full = part1 + sep + part2 + sep + part3;
       localStorage.setItem(key, full);
     } catch (err) {
       setPlanText((prev) => prev + `\n\nError: ${err instanceof Error ? err.message : "Failed"}`);
@@ -483,7 +485,7 @@ export default function LearningPathModal({
               {planLoading && !planText && (
                 <div className="flex items-center gap-2 text-gray-400 text-sm py-4">
                   <span className="w-4 h-4 border border-gray-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
-                  Building foundations and working knowledge…
+                  Building Levels 0–3…
                 </div>
               )}
 
@@ -493,7 +495,9 @@ export default function LearningPathModal({
                   {planLoading && (
                     <div className="flex items-center gap-2 text-gray-400 text-xs mt-4">
                       <span className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
-                      Loading advanced levels and research frontier…
+                      {planText.includes("Level 4") || planText.includes("Level 5")
+                        ? "Loading research frontier and canon…"
+                        : "Loading advanced depth and seminal papers…"}
                     </div>
                   )}
                   {!planLoading && (

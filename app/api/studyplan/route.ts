@@ -31,10 +31,10 @@ A flowing paragraph (not bullet points, no bold labels like "Teaches:" or "Prere
 
   const part = (body as { part?: number }).part ?? 1;
 
-  const prompt = part === 1
-    ? `You are the world's most knowledgeable academic guide for ${context}.
+  const prompts: Record<number, string> = {
+    1: `You are the world's most knowledgeable academic guide for ${context}.
 
-Create the first half of a complete literature map for ${context} — covering the foundational levels from zero prerequisites through working knowledge. Be thorough: include every resource that genuinely belongs.
+Generate Part 1 of a complete literature map: the foundational levels.
 
 Student profile: ${profile}
 
@@ -43,7 +43,7 @@ ${resourceFormat}
 ---
 
 ## Level 0 — Before You Begin
-These are not ${term}. These are the prerequisite subjects — math, theory, adjacent tools — you must already have before ${term} makes sense. Start here if you're missing any.
+These are not ${term}. These are the prerequisite subjects — math, theory, adjacent tools — you must already have before ${term} makes sense.
 
 [all genuinely relevant prerequisite resources]
 
@@ -64,15 +64,15 @@ Core textbooks that rigorously establish the fundamentals. What every serious st
 ---
 
 ## Level 3 — Working Knowledge
-After this level you can work in the field — solve real problems, read current papers, contribute to projects.
+After this level you can work in the field — solve real problems, read current papers, contribute.
 
 [all relevant resources]
 
-Real titles and real authors only. Do not truncate any level.`
+Real titles and real authors only. Do not truncate any level.`,
 
-    : `You are the world's most knowledgeable academic guide for ${context}.
+    2: `You are the world's most knowledgeable academic guide for ${context}.
 
-Create the second half of a complete literature map for ${context} — covering graduate level, the seminal papers, and the research frontier.
+Generate Part 2 of a complete literature map: graduate depth and the seminal papers.
 
 Student profile: ${profile}
 
@@ -88,9 +88,19 @@ Graduate-level textbooks and advanced monographs. The reading list for a PhD stu
 ---
 
 ## Level 5 — The Papers Everyone Cites
-The landmark papers and seminal works that defined this field. The originals — the papers that introduced the key ideas, not tutorials about them. Anyone serious about ${term} has read all of these.
+The landmark papers that defined this field. The originals — the papers that introduced the key ideas. Anyone serious about ${term} has read all of these.
 
-[all relevant papers — do not artificially limit this list]
+[all relevant papers — do not limit this list]
+
+Real titles and real authors only. Do not truncate.`,
+
+    3: `You are the world's most knowledgeable academic guide for ${context}.
+
+Generate Part 3 of a complete literature map: the research frontier and the canon.
+
+Student profile: ${profile}
+
+${resourceFormat}
 
 ---
 
@@ -104,7 +114,10 @@ High-impact recent papers and surveys defining the current state of the art. Wha
 ## The Three That Define the Field
 If someone asks "what are the three works that define this field" — these are them. One sentence each on why each is irreplaceable.
 
-Real titles and real authors only. Do not truncate any level.`;
+Real titles and real authors only. Do not truncate.`,
+  };
+
+  const prompt = prompts[part] ?? prompts[1];
 
   const encoder = new TextEncoder();
 
