@@ -113,6 +113,7 @@ Include every resource that genuinely belongs — do not cap or truncate any lev
         const anthropicStream = await client.messages.stream({
           model: "claude-sonnet-4-6",
           max_tokens: 8192,
+          thinking: { type: "adaptive" },
           messages: [{ role: "user", content: prompt }],
         });
 
@@ -134,6 +135,10 @@ Include every resource that genuinely belongs — do not cap or truncate any lev
   });
 
   return new Response(stream, {
-    headers: { "Content-Type": "text/plain; charset=utf-8" },
+    headers: {
+      "Content-Type": "text/plain; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      "X-Accel-Buffering": "no",
+    },
   });
 }
