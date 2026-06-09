@@ -2,8 +2,9 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest } from "next/server";
 
 export async function POST(req: NextRequest) {
-  const { apiKey, term, domain, l1, l2, hoursPerWeek, background, goal, learningStyle } =
-    await req.json();
+  let body: { apiKey?: string; term?: string; domain?: string; l1?: string; l2?: string; hoursPerWeek?: number; background?: string; goal?: string; learningStyle?: string };
+  try { body = await req.json(); } catch { return new Response("Invalid JSON", { status: 400 }); }
+  const { apiKey, term, domain, l1, l2, hoursPerWeek, background, goal, learningStyle } = body;
 
   if (!apiKey || !term || !hoursPerWeek) {
     return new Response("apiKey, term, and hoursPerWeek are required", { status: 400 });
@@ -24,85 +25,85 @@ export async function POST(req: NextRequest) {
 
   const prompt = `You are the world's most knowledgeable academic guide for ${context}. You know every serious book, every landmark paper, every foundational text that has ever mattered in this field and its prerequisite subjects.
 
-Create a COMPLETE, EXHAUSTIVE learning literature map for ${context} — from the absolute zero prerequisite foundations through to the current research frontier. This should be the definitive list: every serious learner's complete reading order.
+Create a complete, exhaustive learning literature map for ${context} — from the absolute zero prerequisite foundations through to the current research frontier. This is the definitive reading order for a serious learner.
 
-**Student profile:** ${profile}
-
----
-
-**FORMAT RULES — follow exactly for every single resource:**
-
-### [TYPE] Full Title
-*Author(s) · Year · Publisher/Venue*
-**Teaches:** 2-3 sentences on what you actually learn and what capability you gain
-**Prerequisites:** Exactly what you must already know before opening this
-**Find it:** [Amazon](https://www.amazon.com/s?k=Title+Author) for books · [arXiv](https://arxiv.org/search/?query=Title&searchtype=all) or [Google Scholar](https://scholar.google.com/scholar?q=Title+Author) for papers
-
-TYPE is one of: TEXTBOOK · BOOK · PAPER · SURVEY · LECTURE NOTES
-
-For search links: replace spaces with + in the URL. Use the exact title and primary author.
+Student profile: ${profile}
 
 ---
 
-Now produce all levels in order. Do not skip levels. Do not merge levels:
+Write every resource as a flowing paragraph — no labels like "Teaches:" or "Prerequisites:", no type tags, no form-style bullets. Just natural prose, as if a knowledgeable mentor is telling you about each work in conversation. Make it readable.
 
-## Level 0 — Prerequisites: What You Must Know Before Starting
-*These are not ${term}. These are the adjacent fields you must already have before ${term} makes sense. If you're missing any of these, start here.*
+For each resource, write it in this flowing style:
 
-[List 4–6 foundational prerequisite resources from other fields — the math, the theory, the tools, whatever ${term} builds on]
+### Title — Author(s) (Year)
 
----
+One or two paragraphs. First: what this work actually does and why it exists in this position in the curriculum. What you will be able to think or do after working through it that you couldn't before. Second sentence or two: what you need to already know before it makes sense. End with the search links woven naturally: [Amazon](search url) for books, [arXiv](search url) or [Google Scholar](search url) for papers.
 
-## Level 1 — First Contact: Accessible Introductions
-*Books and survey papers that introduce ${term} from scratch, assuming no prior knowledge of the subject itself. After this level you understand what the field is and why it exists.*
-
-[List 3–5 resources]
+For search link URLs: encode spaces as +, use the exact title and first author.
 
 ---
 
-## Level 2 — The Foundation: Core Textbooks
-*The textbooks that rigorously establish the field's fundamentals. These are what every serious student reads in their first formal year with the subject.*
+Produce all levels in order:
 
-[List 4–6 resources]
+## Level 0 — Before You Begin
+These are not ${term}. These are the prerequisite subjects you must already have — the math, the theory, the adjacent tools — before ${term} will make sense. If you're missing any of these, start here.
 
----
-
-## Level 3 — Working Knowledge: Becoming a Practitioner
-*After this level you can work in the field — solve real problems, read current papers, contribute to projects. The gap between Level 2 and Level 3 is large; name the resources that bridge it.*
-
-[List 4–6 resources]
+[all relevant prerequisite resources — as many as genuinely belong here]
 
 ---
 
-## Level 4 — Advanced Depth: Graduate Level
-*Graduate-level textbooks, advanced monographs, and specialized texts. The reading list for a PhD student's first two years.*
+## Level 1 — First Contact
+Introductions that assume no prior knowledge of ${term} itself. After this level you understand what the field is, why it exists, and what it is capable of.
 
-[List 4–6 resources]
+[all relevant resources — as many as genuinely belong here]
 
 ---
 
-## Level 5 — The Papers Every Expert Has Read
-*The landmark papers and seminal works that defined this field. Anyone calling themselves an expert has read all of these. Include the original papers that introduced the field's key ideas — not just modern tutorials about them.*
+## Level 2 — The Foundation
+The core textbooks that rigorously establish the fundamentals. What every serious student works through in their first formal year.
 
-[List 6–10 papers — include the real seminal works with real authors and real years]
+[all relevant resources]
+
+---
+
+## Level 3 — Working Knowledge
+After this level you can work in the field — solve real problems, read current papers, contribute to projects.
+
+[all relevant resources]
+
+---
+
+## Level 4 — Advanced Depth
+Graduate-level textbooks and advanced monographs. The reading list for a PhD student's first two years.
+
+[all relevant resources]
+
+---
+
+## Level 5 — The Papers Everyone Cites
+The landmark papers and seminal works that defined this field. Anyone calling themselves serious about ${term} has read all of these. Include the originals — the papers that introduced the field's key ideas, not tutorials about them.
+
+[all relevant papers — do not artificially limit this list]
 
 ---
 
 ## Level 6 — The Research Frontier
-*High-impact recent papers, comprehensive surveys, and preprints defining the current state of the art. What researchers are reading and citing right now.*
+High-impact recent papers and surveys defining the current state of the art. What researchers are reading and citing right now.
 
-[List 5–8 papers/surveys — be specific, real titles and authors only]
+[all relevant papers]
 
 ---
 
-## The Non-Negotiables
+## The Three That Define the Field
 *If someone asks "what are the 3 books that define this field" — these are them. The canon. Explain in 2 sentences why each one is irreplaceable.*
 
-[List exactly 3 resources]
+If someone asks "what are the three books that define this field" — these are them. Write a sentence on why each one is irreplaceable.
+
+[3 resources]
 
 ---
 
-Aim for 30–40 resources total. Every resource must earn its place with a unique contribution. Use real titles and real authors only — do not invent resources. If you're uncertain of a detail, use the search link format so the reader can verify.`;
+Include every resource that genuinely belongs — do not cap or truncate any level. A deep field may have 50+ resources. Every resource earns its place. Real titles, real authors only — no invented works. If uncertain of a detail, use search links so the reader can verify.`;
 
   const encoder = new TextEncoder();
 
@@ -112,7 +113,6 @@ Aim for 30–40 resources total. Every resource must earn its place with a uniqu
         const anthropicStream = await client.messages.stream({
           model: "claude-sonnet-4-6",
           max_tokens: 8192,
-          thinking: { type: "adaptive" },
           messages: [{ role: "user", content: prompt }],
         });
 
