@@ -9,6 +9,7 @@ import VerifyBadge from "@/components/VerifyBadge";
 import LearningPathModal from "@/components/LearningPathModal";
 import DiscoverModal from "@/components/DiscoverModal";
 import ThematicModal from "@/components/ThematicModal";
+import GreatQuestionsModal from "@/components/GreatQuestionsModal";
 
 type Phase = "pick-domain" | "pick-l1" | "pick-l2" | "view-l3";
 
@@ -80,6 +81,7 @@ export default function Home() {
   const [learningPathTarget, setLearningPathTarget] = useState<LearningPathTarget | null>(null);
   const [discoverTarget, setDiscoverTarget] = useState<DiscoverTarget | null>(null);
   const [showThematic, setShowThematic] = useState(false);
+  const [showGreatQuestions, setShowGreatQuestions] = useState(false);
 
   // Wikipedia verification
   const [verifyMap, setVerifyMap] = useState<Record<string, VerifyStatus>>({});
@@ -424,14 +426,26 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Thematic Curricula — featured */}
+              {/* Thematic Curricula + Genealogy — featured */}
               <div className="bg-violet-950/40 border border-violet-800/50 rounded-xl p-4 cursor-pointer hover:bg-violet-950/60 transition-colors"
                 onClick={() => setShowThematic(true)}>
                 <div className="flex items-start gap-3">
                   <div className="w-7 h-7 rounded-lg bg-violet-700/40 border border-violet-600/40 flex items-center justify-center flex-shrink-0 mt-0.5 text-violet-300 text-sm">◈</div>
                   <div>
-                    <p className="text-violet-200 text-sm font-semibold">Thematic Curricula</p>
-                    <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">Trace one deep theme — Symmetry, Entropy, Duality, Infinity — across all of human knowledge. See how it manifests in mathematics, physics, biology, economics, and philosophy, and discover the moments when two fields' versions turned out to be secretly the same thing.</p>
+                    <p className="text-violet-200 text-sm font-semibold">Themes &amp; Genealogy</p>
+                    <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">Pick a field and subfield — then choose <span className="text-violet-300">Themes</span> to surface 40+ deep intellectual themes and trace each across all of human knowledge, or <span className="text-amber-300">Genealogy</span> to trace the unbroken chain of thinkers and ideas that built the field, generation by generation.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Great Questions — featured */}
+              <div className="bg-emerald-950/40 border border-emerald-800/50 rounded-xl p-4 cursor-pointer hover:bg-emerald-950/60 transition-colors"
+                onClick={() => setShowGreatQuestions(true)}>
+                <div className="flex items-start gap-3">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-700/40 border border-emerald-600/40 flex items-center justify-center flex-shrink-0 mt-0.5 text-emerald-300 text-sm">?</div>
+                  <div>
+                    <p className="text-emerald-200 text-sm font-semibold">The Great Questions</p>
+                    <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">The fundamental questions a field can't stop asking — the ones that resist easy answers and that the best minds carry for their entire careers. Pick a field to see its 20+ deep open questions, then click any question to see every angle: what each discipline says, the closest attempts, and why it stays open.</p>
                   </div>
                 </div>
               </div>
@@ -653,6 +667,9 @@ export default function Home() {
       )}
       {showThematic && (
         <ThematicModal apiKey={apiKey} onClose={() => setShowThematic(false)} />
+      )}
+      {showGreatQuestions && (
+        <GreatQuestionsModal apiKey={apiKey} onClose={() => setShowGreatQuestions(false)} />
       )}
     </div>
   );

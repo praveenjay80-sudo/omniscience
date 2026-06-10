@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { TAXONOMY_SEED } from "@/lib/taxonomy-seed";
 
 interface ThematicModalProps {
@@ -8,70 +8,155 @@ interface ThematicModalProps {
   onClose: () => void;
 }
 
-interface ThemeItem {
-  name: string;
-  description: string;
-}
+type Mode = "themes" | "genealogy";
+type View = "picker" | "themes" | "curriculum" | "genealogy";
+
+interface ThemeItem { name: string; description: string; }
 
 function parseNDJSON(raw: string): ThemeItem[] {
   const results: ThemeItem[] = [];
   const seen = new Set<string>();
   for (const line of raw.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("//")) continue;
+    const t = line.trim();
+    if (!t) continue;
     try {
-      const obj = JSON.parse(trimmed);
+      const obj = JSON.parse(t);
       const name: string = obj.n ?? obj.name ?? "";
       const description: string = obj.d ?? obj.description ?? "";
       if (name && description && !seen.has(name.toLowerCase())) {
         seen.add(name.toLowerCase());
         results.push({ name, description });
       }
-    } catch { /* skip malformed lines */ }
+    } catch { /* skip */ }
   }
   return results;
 }
 
+function renderMarkdown(text: string, accentClass = "text-violet-400") {
+  return text.split("\n").map((line, i) => {
+    const inline = (s: string): React.ReactNode[] =>
+      s.split(/(\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\)|\*[^*\n]+\*)/g).map((p, j) => {
+        if (p.startsWith("**") && p.endsWith("**"))
+          return <strong key={j} className="text-gray-200 font-semibold">{p.slice(2, -2)}</strong>;
+        const lm = p.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+        if (lm) return <a key={j} href={lm[2]} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline underline-offset-2">{lm[1]}</a>;
+        if (p.startsWith("*") && p.endsWith("*") && p.length > 2)
+          return <em key={j} className="text-gray-400 not-italic">{p.slice(1, -1)}</em>;
+        return p;
+      });
+
+    if (line.startsWith("## "))
+      return <h2 key={i} className="text-sm font-bold text-white mt-7 mb-2 pb-1 border-b border-gray-800">{inline(line.slice(3))}</h2>;
+    if (line.startsWith("### ")) {
+      const raw = line.slice(4).trim();
+      // Genealogy thinker format: "Name · dates"
+      const dotMatch = raw.match(/^(.+)\s·\s(.+)$/);
+      const tagMatch = raw.match(/\s·\s(CORE|ESSENTIAL|OPTIONAL)$/);
+      if (tagMatch) {
+        const tag = tagMatch[1];
+        const title = raw.slice(0, -tagMatch[0].length);
+        const tagColors: Record<string, string> = {
+          CORE: "bg-red-900/60 text-red-300 border-red-700/50",
+          ESSENTIAL: "bg-blue-900/60 text-blue-300 border-blue-700/50",
+          OPTIONAL: "bg-gray-800 text-gray-400 border-gray-700",
+        };
+        return (
+          <div key={i} className="flex items-baseline gap-2 mt-4 mb-0.5">
+            <h3 className="text-sm font-semibold text-blue-300 flex-1">{inline(title)}</h3>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium flex-shrink-0 ${tagColors[tag]}`}>{tag}</span>
+          </div>
+        );
+      }
+      if (dotMatch) {
+        return (
+          <div key={i} className="mt-5 mb-1 flex items-baseline gap-2">
+            <span className="text-amber-300 text-sm font-semibold">{dotMatch[1]}</span>
+            <span className="text-gray-600 text-xs">· {dotMatch[2]}</span>
+          </div>
+        );
+      }
+      return <h3 key={i} className={`text-sm font-semibold mt-5 mb-1 ${accentClass}`}>{inline(raw)}</h3>;
+    }
+    if (line.startsWith("#### "))
+      return <h4 key={i} className={`text-xs font-bold mt-5 mb-2 uppercase tracking-widest ${accentClass} opacity-70`}>{line.slice(5)}</h4>;
+    if (line.startsWith("- "))
+      return <li key={i} className="text-gray-400 ml-4 text-xs list-disc leading-relaxed">{inline(line.slice(2))}</li>;
+    if (line.startsWith("---")) return <hr key={i} className="border-gray-800 my-5" />;
+    if (line.trim() === "") return <div key={i} className="h-1" />;
+    return <p key={i} className="text-gray-400 text-xs leading-relaxed">{inline(line)}</p>;
+  });
+}
+
 export default function ThematicModal({ apiKey, onClose }: ThematicModalProps) {
-  // Picker state
+  const [view, setView] = useState<View>("picker");
+  const [mode, setMode] = useState<Mode>("themes");
+
+  // Field selection
   const [selectedDomain, setSelectedDomain] = useState("");
   const [selectedL1, setSelectedL1] = useState("");
-  const [themes, setThemes] = useState<ThemeItem[]>([]);
-  const [listLoading, setListLoading] = useState(false);
-  const [listError, setListError] = useState<string | null>(null);
+  const [selectedL2, setSelectedL2] = useState("");
+  const [l2Options, setL2Options] = useState<string[]>([]);
 
-  // Curriculum state
+  // Themes state
+  const [themes, setThemes] = useState<ThemeItem[]>([]);
+  const [themesLoading, setThemesLoading] = useState(false);
+  const [themesError, setThemesError] = useState<string | null>(null);
   const [activeTheme, setActiveTheme] = useState<ThemeItem | null>(null);
   const [curriculum, setCurriculum] = useState("");
   const [curriculumLoading, setCurriculumLoading] = useState(false);
   const [curriculumError, setCurriculumError] = useState<string | null>(null);
 
+  // Genealogy state
+  const [genealogy, setGenealogy] = useState("");
+  const [genealogyLoading, setGenealogyLoading] = useState(false);
+  const [genealogyError, setGenealogyError] = useState<string | null>(null);
+
   const domainEntry = TAXONOMY_SEED.find((s) => s.domain === selectedDomain);
   const l1List = domainEntry?.l1 ?? [];
-  const listCacheKey = selectedDomain && selectedL1 ? `omni_thematic_list::${selectedDomain}::${selectedL1}` : null;
+  const fieldLabel = selectedL2 || selectedL1;
 
-  async function generateList() {
-    if (!selectedL1 || !selectedDomain || !apiKey) return;
+  // Load cached L2 list when L1 changes
+  useEffect(() => {
+    if (!selectedDomain || !selectedL1) { setL2Options([]); setSelectedL2(""); return; }
+    const cached = localStorage.getItem(`omni_l2::${selectedDomain}::${selectedL1}`);
+    if (cached) {
+      try { setL2Options(JSON.parse(cached) as string[]); } catch { setL2Options([]); }
+    } else {
+      setL2Options([]);
+    }
+    setSelectedL2("");
+  }, [selectedDomain, selectedL1]);
+
+  const listCacheKey = selectedDomain && selectedL1
+    ? `omni_thematic_list::${selectedDomain}::${selectedL2 || selectedL1}`
+    : null;
+  const genealogyCacheKey = selectedDomain && selectedL1
+    ? `omni_genealogy::${selectedL2 || selectedL1}`
+    : null;
+
+  // ── Themes ────────────────────────────────────────────────────────────────────
+  async function generateThemes() {
+    if (!fieldLabel || !apiKey) return;
     if (listCacheKey) {
       const cached = localStorage.getItem(listCacheKey);
       if (cached) {
         try {
           const parsed = JSON.parse(cached) as ThemeItem[];
-          if (parsed.length > 0) { setThemes(parsed); return; }
+          if (parsed.length > 0) { setThemes(parsed); setView("themes"); return; }
         } catch {}
       }
     }
-    setListLoading(true);
+    setThemesLoading(true);
     setThemes([]);
-    setListError(null);
+    setThemesError(null);
+    setView("themes");
     try {
       const res = await fetch("/api/thematic", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey, domain: selectedDomain, l1: selectedL1 }),
+        body: JSON.stringify({ apiKey, domain: selectedDomain, l1: selectedL2 || selectedL1 }),
       });
-      if (!res.ok) throw new Error(`Server error ${res.status}`);
-      if (!res.body) throw new Error("Empty response");
+      if (!res.ok || !res.body) throw new Error(`Server error ${res.status}`);
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let raw = "";
@@ -86,14 +171,15 @@ export default function ThematicModal({ apiKey, onClose }: ThematicModalProps) {
       setThemes(final);
       if (listCacheKey && final.length > 0) localStorage.setItem(listCacheKey, JSON.stringify(final));
     } catch (err) {
-      setListError(err instanceof Error ? err.message : "Generation failed");
+      setThemesError(err instanceof Error ? err.message : "Failed");
     } finally {
-      setListLoading(false);
+      setThemesLoading(false);
     }
   }
 
   async function openCurriculum(theme: ThemeItem) {
     setActiveTheme(theme);
+    setView("curriculum");
     const cacheKey = `omni_curriculum::${theme.name.toLowerCase()}`;
     const cached = localStorage.getItem(cacheKey);
     if (cached) { setCurriculum(cached); return; }
@@ -106,8 +192,7 @@ export default function ThematicModal({ apiKey, onClose }: ThematicModalProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ apiKey, theme: theme.name }),
       });
-      if (!res.ok) throw new Error(`Server error ${res.status}`);
-      if (!res.body) throw new Error("Empty response");
+      if (!res.ok || !res.body) throw new Error(`Server error ${res.status}`);
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let text = "";
@@ -120,249 +205,309 @@ export default function ThematicModal({ apiKey, onClose }: ThematicModalProps) {
       }
       localStorage.setItem(cacheKey, text);
     } catch (err) {
-      setCurriculumError(err instanceof Error ? err.message : "Generation failed");
+      setCurriculumError(err instanceof Error ? err.message : "Failed");
     } finally {
       setCurriculumLoading(false);
     }
   }
 
-  function renderCurriculum(text: string) {
-    return text.split("\n").map((line, i) => {
-      const inline = (s: string): React.ReactNode[] =>
-        s.split(/(\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\)|\*[^*\n]+\*)/g).map((p, j) => {
-          if (p.startsWith("**") && p.endsWith("**"))
-            return <strong key={j} className="text-gray-200 font-semibold">{p.slice(2, -2)}</strong>;
-          const lm = p.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
-          if (lm) return <a key={j} href={lm[2]} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline underline-offset-2">{lm[1]}</a>;
-          if (p.startsWith("*") && p.endsWith("*") && p.length > 2)
-            return <em key={j} className="text-gray-400 not-italic">{p.slice(1, -1)}</em>;
-          return p;
-        });
-
-      if (line.startsWith("## "))
-        return <h2 key={i} className="text-sm font-bold text-white mt-7 mb-2 pb-1 border-b border-gray-800">{inline(line.slice(3))}</h2>;
-      if (line.startsWith("### ")) {
-        const raw = line.slice(4).trim();
-        const tagMatch = raw.match(/\s·\s(CORE|ESSENTIAL|OPTIONAL)$/);
-        const tag = tagMatch ? tagMatch[1] : null;
-        const title = tag ? raw.slice(0, -tagMatch![0].length) : raw;
-        const tagColors: Record<string, string> = {
-          CORE: "bg-red-900/60 text-red-300 border-red-700/50",
-          ESSENTIAL: "bg-blue-900/60 text-blue-300 border-blue-700/50",
-          OPTIONAL: "bg-gray-800 text-gray-400 border-gray-700",
-        };
-        return (
-          <div key={i} className="flex items-baseline gap-2 mt-4 mb-0.5">
-            <h3 className="text-sm font-semibold text-blue-300 flex-1">{inline(title)}</h3>
-            {tag && <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium flex-shrink-0 ${tagColors[tag]}`}>{tag}</span>}
-          </div>
-        );
+  // ── Genealogy ─────────────────────────────────────────────────────────────────
+  async function generateGenealogy() {
+    if (!fieldLabel || !apiKey) return;
+    if (genealogyCacheKey) {
+      const cached = localStorage.getItem(genealogyCacheKey);
+      if (cached) { setGenealogy(cached); setView("genealogy"); return; }
+    }
+    setGenealogyLoading(true);
+    setGenealogy("");
+    setGenealogyError(null);
+    setView("genealogy");
+    try {
+      const res = await fetch("/api/genealogy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          apiKey,
+          term: selectedL2 || selectedL1,
+          domain: selectedDomain,
+          l1: selectedL1,
+          l2: selectedL2 || undefined,
+        }),
+      });
+      if (!res.ok || !res.body) throw new Error(`Server error ${res.status}`);
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let text = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        text += decoder.decode(value, { stream: true });
+        if (text.includes("__ERROR__:")) throw new Error(text.split("__ERROR__:")[1]?.trim());
+        setGenealogy(text);
       }
-      if (line.startsWith("#### "))
-        return <h4 key={i} className="text-xs font-bold text-violet-400 mt-5 mb-2 uppercase tracking-widest">{line.slice(5)}</h4>;
-      if (line.startsWith("- "))
-        return <li key={i} className="text-gray-400 ml-4 text-xs list-disc leading-relaxed">{inline(line.slice(2))}</li>;
-      if (line.startsWith("---")) return <hr key={i} className="border-gray-800 my-5" />;
-      if (line.trim() === "") return <div key={i} className="h-1" />;
-      return <p key={i} className="text-gray-400 text-xs leading-relaxed">{inline(line)}</p>;
-    });
+      if (genealogyCacheKey) localStorage.setItem(genealogyCacheKey, text);
+    } catch (err) {
+      setGenealogyError(err instanceof Error ? err.message : "Failed");
+    } finally {
+      setGenealogyLoading(false);
+    }
   }
 
-  const selectClass =
-    "w-full bg-gray-800 border border-gray-700 focus:border-violet-500 rounded-lg px-3 py-2.5 text-sm text-white outline-none appearance-none cursor-pointer";
+  function handleGenerate() {
+    if (mode === "themes") generateThemes();
+    else generateGenealogy();
+  }
 
-  // ── Curriculum view ──────────────────────────────────────────────────────────
-  if (activeTheme) {
+  // ── Shared UI helpers ─────────────────────────────────────────────────────────
+  const selectClass = "w-full bg-gray-800 border border-gray-700 focus:border-violet-500 rounded-lg px-3 py-2.5 text-sm text-white outline-none appearance-none cursor-pointer";
+
+  function BackButton({ label, onClick }: { label: string; onClick: () => void }) {
     return (
-      <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={onClose}>
-        <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl"
-          onClick={(e) => e.stopPropagation()}>
+      <button onClick={onClick} className="text-gray-500 hover:text-white text-sm flex-shrink-0">
+        ← {label}
+      </button>
+    );
+  }
 
-          <div className="flex items-start justify-between px-4 py-3 border-b border-gray-700 flex-shrink-0">
-            <div className="flex items-center gap-3 min-w-0">
-              <button
-                onClick={() => { setActiveTheme(null); setCurriculum(""); setCurriculumError(null); }}
-                className="text-gray-500 hover:text-white text-sm flex-shrink-0"
-              >
-                ← Themes
-              </button>
-              <span className="text-gray-700">|</span>
-              <div className="min-w-0">
-                <p className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">Cross-Field Curriculum</p>
-                <h2 className="text-white font-semibold text-base truncate">{activeTheme.name}</h2>
-              </div>
-            </div>
-            <button onClick={onClose} className="text-gray-500 hover:text-white text-lg leading-none mt-1 flex-shrink-0 ml-3">✕</button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-4">
-            {curriculumLoading && !curriculum && (
-              <div className="flex items-center gap-2 text-gray-400 text-sm py-4">
-                <span className="w-4 h-4 border border-gray-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
-                Tracing "{activeTheme.name}" across all fields…
-              </div>
-            )}
-            {curriculumError && <p className="text-red-400 text-xs">{curriculumError}</p>}
-            {curriculum && (
-              <div>
-                <div className="space-y-0.5">{renderCurriculum(curriculum)}</div>
-                {curriculumLoading && (
-                  <div className="flex items-center gap-2 text-gray-400 text-xs mt-4">
-                    <span className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
-                    Generating…
-                  </div>
-                )}
-                {!curriculumLoading && (
-                  <div className="mt-4 pt-3 border-t border-gray-800 flex justify-end">
-                    <button
-                      onClick={() => {
-                        localStorage.removeItem(`omni_curriculum::${activeTheme.name.toLowerCase()}`);
-                        setCurriculum("");
-                        openCurriculum(activeTheme);
-                      }}
-                      className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
-                    >
-                      Regenerate
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+  function StreamingSpinner({ text }: { text: string }) {
+    return (
+      <div className="flex items-center gap-2 text-gray-400 text-sm py-4">
+        <span className="w-4 h-4 border border-gray-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+        {text}
       </div>
     );
   }
 
-  // ── Theme picker view ────────────────────────────────────────────────────────
+  // ── Header title ──────────────────────────────────────────────────────────────
+  const headerTitle = view === "picker"
+    ? "Explore a field"
+    : view === "themes"
+    ? (themes.length > 0 ? `${themes.length} themes in ${fieldLabel}` : `Finding themes in ${fieldLabel}…`)
+    : view === "curriculum"
+    ? activeTheme?.name ?? ""
+    : (genealogy || genealogyLoading) ? `Intellectual Genealogy of ${fieldLabel}` : `Tracing ${fieldLabel}…`;
+
+  const headerSub = view === "picker" ? "Themes or Genealogy"
+    : view === "themes" ? "Thematic Curricula"
+    : view === "curriculum" ? "Cross-Field Curriculum"
+    : "Intellectual Genealogy";
+
+  // ── Render ────────────────────────────────────────────────────────────────────
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl"
         onClick={(e) => e.stopPropagation()}>
 
+        {/* Header */}
         <div className="flex items-start justify-between px-4 py-3 border-b border-gray-700 flex-shrink-0">
-          <div>
-            <p className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">Thematic Curricula</p>
-            <h2 className="text-white font-semibold text-base">
-              {themes.length > 0
-                ? `${themes.length} themes in ${selectedL1}`
-                : listLoading
-                ? `Finding themes in ${selectedL1}…`
-                : "Discover the deep themes of any field"}
-            </h2>
+          <div className="flex items-center gap-3 min-w-0">
+            {view !== "picker" && (
+              <>
+                <BackButton
+                  label={view === "curriculum" ? "Themes" : view === "genealogy" ? "Picker" : "Picker"}
+                  onClick={() => {
+                    if (view === "curriculum") { setView("themes"); setActiveTheme(null); setCurriculum(""); }
+                    else { setView("picker"); setGenealogy(""); setThemes([]); setGenealogyError(null); setThemesError(null); }
+                  }}
+                />
+                <span className="text-gray-700">|</span>
+              </>
+            )}
+            <div className="min-w-0">
+              <p className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">{headerSub}</p>
+              <h2 className="text-white font-semibold text-base truncate">{headerTitle}</h2>
+            </div>
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-white text-lg leading-none mt-1">✕</button>
+          <button onClick={onClose} className="text-gray-500 hover:text-white text-lg leading-none mt-1 flex-shrink-0 ml-3">✕</button>
         </div>
 
+        {/* Body */}
         <div className="flex-1 overflow-y-auto p-4">
-          {themes.length === 0 && !listLoading && (
-            <div className="space-y-3">
+
+          {/* ── PICKER VIEW ── */}
+          {view === "picker" && (
+            <div className="space-y-4">
               <p className="text-gray-500 text-xs leading-relaxed">
-                Pick a domain and field — Claude surfaces its deep intellectual themes. Click any theme to trace it across all of human knowledge.
+                Pick a domain, field, and optionally a subfield — then choose what to generate.
               </p>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* Dropdowns */}
+              <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="block text-[11px] text-gray-500 mb-1.5 uppercase tracking-wide">Domain</label>
-                  <select
-                    value={selectedDomain}
-                    onChange={(e) => { setSelectedDomain(e.target.value); setSelectedL1(""); setThemes([]); }}
-                    className={selectClass}
-                  >
-                    <option value="">Select domain…</option>
-                    {TAXONOMY_SEED.map((s) => (
-                      <option key={s.domain} value={s.domain}>{s.domain}</option>
-                    ))}
+                  <select value={selectedDomain}
+                    onChange={(e) => { setSelectedDomain(e.target.value); setSelectedL1(""); setSelectedL2(""); }}
+                    className={selectClass}>
+                    <option value="">Select…</option>
+                    {TAXONOMY_SEED.map((s) => <option key={s.domain} value={s.domain}>{s.domain}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-[11px] text-gray-500 mb-1.5 uppercase tracking-wide">Field</label>
-                  <select
-                    value={selectedL1}
-                    onChange={(e) => { setSelectedL1(e.target.value); setThemes([]); }}
+                  <select value={selectedL1}
+                    onChange={(e) => { setSelectedL1(e.target.value); setSelectedL2(""); }}
                     disabled={!selectedDomain}
-                    className={`${selectClass} disabled:opacity-40`}
-                  >
-                    <option value="">Select field…</option>
-                    {l1List.map((l1) => (
-                      <option key={l1} value={l1}>{l1}</option>
-                    ))}
+                    className={`${selectClass} disabled:opacity-40`}>
+                    <option value="">Select…</option>
+                    {l1List.map((l1) => <option key={l1} value={l1}>{l1}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] text-gray-500 mb-1.5 uppercase tracking-wide">
+                    Subfield
+                    {selectedL1 && l2Options.length === 0 && (
+                      <span className="text-gray-700 ml-1 normal-case">(browse field first)</span>
+                    )}
+                  </label>
+                  <select value={selectedL2}
+                    onChange={(e) => setSelectedL2(e.target.value)}
+                    disabled={!selectedL1 || l2Options.length === 0}
+                    className={`${selectClass} disabled:opacity-40`}>
+                    <option value="">All of {selectedL1 || "field"}</option>
+                    {l2Options.map((l2) => <option key={l2} value={l2}>{l2}</option>)}
                   </select>
                 </div>
               </div>
 
-              {listError && <p className="text-red-400 text-xs">{listError}</p>}
+              {/* Mode tabs */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setMode("themes")}
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors border ${
+                    mode === "themes"
+                      ? "bg-violet-900/60 border-violet-600 text-violet-200"
+                      : "bg-gray-800 border-gray-700 text-gray-400 hover:text-gray-200"
+                  }`}
+                >
+                  ◈ Themes
+                </button>
+                <button
+                  onClick={() => setMode("genealogy")}
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors border ${
+                    mode === "genealogy"
+                      ? "bg-amber-900/40 border-amber-700 text-amber-200"
+                      : "bg-gray-800 border-gray-700 text-gray-400 hover:text-gray-200"
+                  }`}
+                >
+                  ⟳ Genealogy
+                </button>
+              </div>
+
+              <p className="text-gray-600 text-xs -mt-1">
+                {mode === "themes"
+                  ? "Surfaces 40+ deep intellectual themes in the selected field. Click any theme to trace it across all of human knowledge."
+                  : "Traces the unbroken chain of thinkers and ideas that built the field, generation by generation — from founders to the living practitioners."}
+              </p>
 
               <button
-                onClick={generateList}
+                onClick={handleGenerate}
                 disabled={!selectedL1 || !apiKey}
-                className="w-full bg-violet-700 hover:bg-violet-600 disabled:opacity-40 text-white text-sm py-2.5 rounded-lg transition-colors font-medium"
+                className={`w-full disabled:opacity-40 text-white text-sm py-2.5 rounded-lg transition-colors font-medium ${
+                  mode === "themes"
+                    ? "bg-violet-700 hover:bg-violet-600"
+                    : "bg-amber-800 hover:bg-amber-700"
+                }`}
               >
-                {!apiKey ? "Enter API key first" : selectedL1 ? `Find themes in ${selectedL1} →` : "Pick a domain and field above"}
+                {!apiKey ? "Enter API key first"
+                  : !selectedL1 ? "Pick a domain and field above"
+                  : mode === "themes"
+                  ? `Find themes in ${fieldLabel} →`
+                  : `Trace genealogy of ${fieldLabel} →`}
               </button>
             </div>
           )}
 
-          {listLoading && themes.length === 0 && (
-            <div className="flex items-center gap-2 text-gray-400 text-sm py-4">
-              <span className="w-4 h-4 border border-gray-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
-              Surfacing themes in {selectedL1}…
-            </div>
-          )}
-
-          {themes.length > 0 && (
+          {/* ── THEMES LIST VIEW ── */}
+          {view === "themes" && (
             <div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {themes.map((t) => (
-                  <button
-                    key={t.name}
-                    onClick={() => openCurriculum(t)}
-                    className="text-left bg-gray-800/60 hover:bg-violet-950/60 border border-gray-700/60 hover:border-violet-700/60 rounded-lg px-3 py-2.5 transition-colors group"
-                  >
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-gray-100 text-xs font-semibold group-hover:text-violet-200 transition-colors leading-snug">
-                        {t.name}
-                      </p>
-                      <span className="text-[10px] text-gray-600 group-hover:text-violet-500 transition-colors flex-shrink-0 mt-0.5 whitespace-nowrap">
-                        Cross-field →
-                      </span>
-                    </div>
-                    <p className="text-gray-500 text-[11px] leading-relaxed mt-0.5 group-hover:text-gray-400 transition-colors">
-                      {t.description}
-                    </p>
-                  </button>
-                ))}
-              </div>
-
-              {listLoading && (
+              {themesLoading && themes.length === 0 && <StreamingSpinner text={`Surfacing themes in ${fieldLabel}…`} />}
+              {themesError && <p className="text-red-400 text-xs">{themesError}</p>}
+              {themes.length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {themes.map((t) => (
+                    <button key={t.name} onClick={() => openCurriculum(t)}
+                      className="text-left bg-gray-800/60 hover:bg-violet-950/60 border border-gray-700/60 hover:border-violet-700/60 rounded-lg px-3 py-2.5 transition-colors group">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-gray-100 text-xs font-semibold group-hover:text-violet-200 transition-colors leading-snug">{t.name}</p>
+                        <span className="text-[10px] text-gray-600 group-hover:text-violet-500 transition-colors flex-shrink-0 mt-0.5 whitespace-nowrap">Cross-field →</span>
+                      </div>
+                      <p className="text-gray-500 text-[11px] leading-relaxed mt-0.5 group-hover:text-gray-400 transition-colors">{t.description}</p>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {themesLoading && themes.length > 0 && (
                 <div className="flex items-center gap-2 text-gray-500 text-xs mt-3">
                   <span className="w-3 h-3 border border-gray-500 border-t-transparent rounded-full animate-spin flex-shrink-0" />
                   Loading more…
                 </div>
               )}
+              {!themesLoading && !themesError && (
+                <button onClick={() => { if (listCacheKey) localStorage.removeItem(listCacheKey); setThemes([]); generateThemes(); }}
+                  className="text-xs text-gray-700 hover:text-gray-500 mt-4 transition-colors">
+                  Regenerate
+                </button>
+              )}
+            </div>
+          )}
 
-              {!listLoading && (
-                <div className="mt-4 pt-3 border-t border-gray-800 flex items-center justify-between">
-                  <button
-                    onClick={() => { setThemes([]); setListError(null); }}
-                    className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
-                  >
-                    ← Choose a different field
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (listCacheKey) localStorage.removeItem(listCacheKey);
-                      setThemes([]);
-                      generateList();
-                    }}
-                    className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
-                  >
-                    Regenerate
-                  </button>
+          {/* ── CURRICULUM VIEW ── */}
+          {view === "curriculum" && (
+            <div>
+              {curriculumLoading && !curriculum && <StreamingSpinner text={`Tracing "${activeTheme?.name}" across all fields…`} />}
+              {curriculumError && <p className="text-red-400 text-xs">{curriculumError}</p>}
+              {curriculum && (
+                <div>
+                  <div className="space-y-0.5">{renderMarkdown(curriculum, "text-violet-400")}</div>
+                  {curriculumLoading && (
+                    <div className="flex items-center gap-2 text-gray-400 text-xs mt-4">
+                      <span className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                      Generating…
+                    </div>
+                  )}
+                  {!curriculumLoading && (
+                    <div className="mt-4 pt-3 border-t border-gray-800 flex justify-end">
+                      <button onClick={() => {
+                        if (!activeTheme) return;
+                        localStorage.removeItem(`omni_curriculum::${activeTheme.name.toLowerCase()}`);
+                        setCurriculum("");
+                        openCurriculum(activeTheme);
+                      }} className="text-xs text-gray-600 hover:text-gray-400 transition-colors">Regenerate</button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           )}
+
+          {/* ── GENEALOGY VIEW ── */}
+          {view === "genealogy" && (
+            <div>
+              {genealogyLoading && !genealogy && <StreamingSpinner text={`Tracing the intellectual lineage of ${fieldLabel}…`} />}
+              {genealogyError && <p className="text-red-400 text-xs">{genealogyError}</p>}
+              {genealogy && (
+                <div>
+                  <div className="space-y-0.5">{renderMarkdown(genealogy, "text-amber-400")}</div>
+                  {genealogyLoading && (
+                    <div className="flex items-center gap-2 text-gray-400 text-xs mt-4">
+                      <span className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                      Generating…
+                    </div>
+                  )}
+                  {!genealogyLoading && (
+                    <div className="mt-4 pt-3 border-t border-gray-800 flex justify-end">
+                      <button onClick={() => {
+                        if (genealogyCacheKey) localStorage.removeItem(genealogyCacheKey);
+                        setGenealogy("");
+                        generateGenealogy();
+                      }} className="text-xs text-gray-600 hover:text-gray-400 transition-colors">Regenerate</button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
         </div>
       </div>
     </div>
