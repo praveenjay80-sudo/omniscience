@@ -652,16 +652,7 @@ export default function Home() {
         />
       )}
       {showThematic && (
-        <ThematicModal
-          apiKey={apiKey}
-          onClose={() => setShowThematic(false)}
-          onStudyPlan={(term, domain, l1) => {
-            setShowThematic(false);
-            setSelectedDomain(domain);
-            setSelectedL1(l1);
-            setLearningPathTarget({ term });
-          }}
-        />
+        <ThematicModal apiKey={apiKey} onClose={() => setShowThematic(false)} />
       )}
     </div>
   );
