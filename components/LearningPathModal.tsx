@@ -44,7 +44,7 @@ export default function LearningPathModal({
   apiKey,
   onClose,
 }: LearningPathModalProps) {
-  const [tab, setTab] = useState<"prereq" | "plan">("prereq");
+  const [tab, setTab] = useState<"prereq" | "plan" | "programs">("prereq");
 
   const [prereqData, setPrereqData] = useState<PrereqData | null>(null);
   const [prereqLoading, setPrereqLoading] = useState(false);
@@ -57,6 +57,11 @@ export default function LearningPathModal({
   const [planText, setPlanText] = useState("");
   const [planLoading, setPlanLoading] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
+  const [planFilter, setPlanFilter] = useState<"all" | "core" | "core+essential">("all");
+
+  const [programsText, setProgramsText] = useState("");
+  const [programsLoading, setProgramsLoading] = useState(false);
+  const [programsError, setProgramsError] = useState<string | null>(null);
 
   const [expandedBooks, setExpandedBooks] = useState<Set<string>>(new Set());
   const [bookPrereqs, setBookPrereqs] = useState<Record<string, string>>({});
@@ -235,6 +240,58 @@ export default function LearningPathModal({
       }));
     } finally {
       setBookPrereqLoading(null);
+    }
+  }
+
+  function filterPlanText(text: string): string {
+    if (planFilter === "all") return text;
+    const lines = text.split("\n");
+    const out: string[] = [];
+    let skip = false;
+    for (const line of lines) {
+      if (line.startsWith("### ")) {
+        const m = line.match(/·\s(CORE|ESSENTIAL|OPTIONAL)/);
+        const tag = m?.[1];
+        skip = planFilter === "core" ? tag !== "CORE" : tag === "OPTIONAL";
+      } else if (line.startsWith("## ") || line.startsWith("---")) {
+        skip = false;
+      }
+      if (!skip) out.push(line);
+    }
+    return out.join("\n");
+  }
+
+  async function fetchPrograms() {
+    if (programsText) return;
+    const key = `omni_programs::${domain}::${l1}::${l2 ?? ""}::${term}`;
+    const cached = localStorage.getItem(key);
+    if (cached) { setProgramsText(cached); return; }
+    if (!apiKey) { setProgramsError("Enter your API key first."); return; }
+    setProgramsLoading(true);
+    setProgramsError(null);
+    try {
+      const res = await fetch("/api/researchprograms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey, term, domain, l1, l2 }),
+      });
+      if (!res.ok) throw new Error(`Server error ${res.status}`);
+      if (!res.body) throw new Error("Empty response");
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let text = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        text += decoder.decode(value, { stream: true });
+        if (text.includes("__ERROR__:")) throw new Error(text.split("__ERROR__:")[1]?.trim() ?? "Unknown error");
+        setProgramsText(text);
+      }
+      localStorage.setItem(key, text);
+    } catch (err) {
+      setProgramsError(err instanceof Error ? err.message : "Failed");
+    } finally {
+      setProgramsLoading(false);
     }
   }
 
@@ -423,17 +480,17 @@ export default function LearningPathModal({
 
         {/* Tabs */}
         <div className="flex border-b border-gray-700 flex-shrink-0">
-          {(["prereq", "plan"] as const).map((t) => (
+          {(["prereq", "plan", "programs"] as const).map((t) => (
             <button
               key={t}
-              onClick={() => setTab(t)}
-              className={`px-5 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
+              onClick={() => { setTab(t); if (t === "programs") fetchPrograms(); }}
+              className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
                 tab === t
                   ? "text-white border-blue-500"
                   : "text-gray-500 border-transparent hover:text-gray-300"
               }`}
             >
-              {t === "prereq" ? "Prerequisites" : "Study Plan"}
+              {t === "prereq" ? "Prerequisites" : t === "plan" ? "Study Plan" : "Research Programs"}
             </button>
           ))}
         </div>
@@ -533,6 +590,65 @@ export default function LearningPathModal({
                       );
                     })}
                   </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* RESEARCH PROGRAMS */}
+          {tab === "programs" && (
+            <div>
+              {programsLoading && !programsText && (
+                <div className="flex items-center gap-2 text-gray-400 text-sm py-4">
+                  <span className="w-4 h-4 border border-gray-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                  Loading research programs for {term}…
+                </div>
+              )}
+              {programsError && <p className="text-red-400 text-sm">{programsError}</p>}
+              {programsText && (
+                <div>
+                  <div className="space-y-0.5">
+                    {programsText.split("\n").map((line, i) => {
+                      const inline = (s: string): React.ReactNode[] =>
+                        s.split(/(\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\))/g).map((p, j) => {
+                          if (p.startsWith("**") && p.endsWith("**"))
+                            return <strong key={j} className="text-gray-200 font-semibold">{p.slice(2, -2)}</strong>;
+                          const lm = p.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+                          if (lm) return <a key={j} href={lm[2]} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline underline-offset-2">{lm[1]}</a>;
+                          return p;
+                        });
+                      if (line.startsWith("### ")) {
+                        const raw = line.slice(4).trim();
+                        const statusMatch = raw.match(/\s·\s(ONGOING|COMPLETED|ABANDONED)$/);
+                        const status = statusMatch?.[1] ?? null;
+                        const name = status ? raw.slice(0, -statusMatch![0].length) : raw;
+                        const statusColors: Record<string, string> = {
+                          ONGOING: "bg-green-900/60 text-green-300 border-green-700/50",
+                          COMPLETED: "bg-blue-900/60 text-blue-300 border-blue-700/50",
+                          ABANDONED: "bg-gray-800 text-gray-400 border-gray-700",
+                        };
+                        return (
+                          <div key={i} className="flex items-baseline gap-2 mt-5 mb-0.5">
+                            <h3 className="text-sm font-semibold text-white flex-1">{inline(name)}</h3>
+                            {status && (
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium flex-shrink-0 ${statusColors[status]}`}>
+                                {status}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      }
+                      if (line.startsWith("---")) return <hr key={i} className="border-gray-800 my-4" />;
+                      if (line.trim() === "") return <div key={i} className="h-1" />;
+                      return <p key={i} className="text-gray-400 text-xs leading-relaxed">{inline(line)}</p>;
+                    })}
+                  </div>
+                  {programsLoading && (
+                    <div className="flex items-center gap-2 text-gray-400 text-xs mt-4">
+                      <span className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                      Loading…
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -654,7 +770,20 @@ export default function LearningPathModal({
 
               {planText && (
                 <div>
-                  <div className="space-y-0.5">{renderMarkdown(planText)}</div>
+                  {/* Filter pills */}
+                  <div className="flex gap-1.5 mb-3">
+                    {(["all", "core", "core+essential"] as const).map((f) => (
+                      <button key={f} onClick={() => setPlanFilter(f)}
+                        className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                          planFilter === f
+                            ? "bg-blue-700 border-blue-600 text-white"
+                            : "border-gray-700 text-gray-500 hover:text-gray-300"
+                        }`}>
+                        {f === "all" ? "All works" : f === "core" ? "Must-reads only" : "Recommended"}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="space-y-0.5">{renderMarkdown(filterPlanText(planText))}</div>
                   {planLoading && (
                     <div className="flex items-center gap-2 text-gray-400 text-xs mt-4">
                       <span className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />

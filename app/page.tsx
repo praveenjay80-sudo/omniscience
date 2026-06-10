@@ -8,6 +8,7 @@ import ExplainModal from "@/components/ExplainModal";
 import VerifyBadge from "@/components/VerifyBadge";
 import LearningPathModal from "@/components/LearningPathModal";
 import DiscoverModal from "@/components/DiscoverModal";
+import ThematicModal from "@/components/ThematicModal";
 
 type Phase = "pick-domain" | "pick-l1" | "pick-l2" | "view-l3";
 
@@ -78,6 +79,7 @@ export default function Home() {
   const [explainTarget, setExplainTarget] = useState<ExplainTarget | null>(null);
   const [learningPathTarget, setLearningPathTarget] = useState<LearningPathTarget | null>(null);
   const [discoverTarget, setDiscoverTarget] = useState<DiscoverTarget | null>(null);
+  const [showThematic, setShowThematic] = useState(false);
 
   // Wikipedia verification
   const [verifyMap, setVerifyMap] = useState<Record<string, VerifyStatus>>({});
@@ -422,6 +424,18 @@ export default function Home() {
                 </div>
               </div>
 
+              {/* Thematic Curricula — featured */}
+              <div className="bg-violet-950/40 border border-violet-800/50 rounded-xl p-4 cursor-pointer hover:bg-violet-950/60 transition-colors"
+                onClick={() => setShowThematic(true)}>
+                <div className="flex items-start gap-3">
+                  <div className="w-7 h-7 rounded-lg bg-violet-700/40 border border-violet-600/40 flex items-center justify-center flex-shrink-0 mt-0.5 text-violet-300 text-sm">◈</div>
+                  <div>
+                    <p className="text-violet-200 text-sm font-semibold">Thematic Curricula</p>
+                    <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">Trace one deep theme — Symmetry, Entropy, Duality, Infinity — across all of human knowledge. See how it manifests in mathematics, physics, biology, economics, and philosophy, and discover the moments when two fields' versions turned out to be secretly the same thing.</p>
+                  </div>
+                </div>
+              </div>
+
               {/* Other features — compact row */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {[
@@ -636,6 +650,9 @@ export default function Home() {
           apiKey={apiKey}
           onClose={() => setDiscoverTarget(null)}
         />
+      )}
+      {showThematic && (
+        <ThematicModal apiKey={apiKey} onClose={() => setShowThematic(false)} />
       )}
     </div>
   );
