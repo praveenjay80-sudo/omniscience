@@ -6,46 +6,84 @@ import { TAXONOMY_SEED } from "@/lib/taxonomy-seed";
 interface ThematicModalProps {
   apiKey: string;
   onClose: () => void;
+  onStudyPlan: (term: string, domain: string, l1: string) => void;
 }
 
-export default function ThematicModal({ apiKey, onClose }: ThematicModalProps) {
+interface ThemeItem {
+  name: string;
+  description: string;
+}
+
+function parseNDJSON(raw: string): ThemeItem[] {
+  const results: ThemeItem[] = [];
+  const seen = new Set<string>();
+  for (const line of raw.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("//")) continue;
+    try {
+      const obj = JSON.parse(trimmed);
+      const name: string = obj.n ?? obj.name ?? "";
+      const description: string = obj.d ?? obj.description ?? "";
+      if (name && description && !seen.has(name.toLowerCase())) {
+        seen.add(name.toLowerCase());
+        results.push({ name, description });
+      }
+    } catch { /* skip malformed lines */ }
+  }
+  return results;
+}
+
+export default function ThematicModal({ apiKey, onClose, onStudyPlan }: ThematicModalProps) {
   const [selectedDomain, setSelectedDomain] = useState("");
   const [selectedL1, setSelectedL1] = useState("");
 
-  const [content, setContent] = useState("");
+  const [themes, setThemes] = useState<ThemeItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const domainEntry = TAXONOMY_SEED.find((s) => s.domain === selectedDomain);
   const l1List = domainEntry?.l1 ?? [];
 
+  const cacheKey = selectedDomain && selectedL1
+    ? `omni_thematic::${selectedDomain}::${selectedL1}`
+    : null;
+
   async function generate() {
-    if (!selectedL1 || !apiKey) return;
-    const key = `omni_thematic::${selectedL1.toLowerCase()}`;
-    const cached = localStorage.getItem(key);
-    if (cached) { setContent(cached); return; }
+    if (!selectedL1 || !selectedDomain || !apiKey) return;
+    if (cacheKey) {
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached) as ThemeItem[];
+          if (parsed.length > 0) { setThemes(parsed); return; }
+        } catch {}
+      }
+    }
     setLoading(true);
-    setContent("");
+    setThemes([]);
     setError(null);
     try {
       const res = await fetch("/api/thematic", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey, theme: selectedL1 }),
+        body: JSON.stringify({ apiKey, domain: selectedDomain, l1: selectedL1 }),
       });
       if (!res.ok) throw new Error(`Server error ${res.status}`);
       if (!res.body) throw new Error("Empty response");
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let text = "";
+      let raw = "";
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        text += decoder.decode(value, { stream: true });
-        if (text.includes("__ERROR__:")) throw new Error(text.split("__ERROR__:")[1]?.trim());
-        setContent(text);
+        raw += decoder.decode(value, { stream: true });
+        if (raw.includes("__ERROR__:")) throw new Error(raw.split("__ERROR__:")[1]?.trim());
+        // Parse progressively so themes appear as they stream
+        setThemes(parseNDJSON(raw));
       }
-      localStorage.setItem(key, text);
+      const final = parseNDJSON(raw);
+      setThemes(final);
+      if (cacheKey && final.length > 0) localStorage.setItem(cacheKey, JSON.stringify(final));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Generation failed");
     } finally {
@@ -53,81 +91,57 @@ export default function ThematicModal({ apiKey, onClose }: ThematicModalProps) {
     }
   }
 
-  function renderContent(text: string) {
-    return text.split("\n").map((line, i) => {
-      const inline = (s: string): React.ReactNode[] =>
-        s.split(/(\*\*[^*]+\*\*|\[[^\]]+\]\([^)]+\)|\*[^*\n]+\*)/g).map((p, j) => {
-          if (p.startsWith("**") && p.endsWith("**"))
-            return <strong key={j} className="text-gray-200 font-semibold">{p.slice(2, -2)}</strong>;
-          const lm = p.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
-          if (lm) return <a key={j} href={lm[2]} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300 underline underline-offset-2">{lm[1]}</a>;
-          if (p.startsWith("*") && p.endsWith("*") && p.length > 2)
-            return <em key={j} className="text-gray-400 not-italic">{p.slice(1, -1)}</em>;
-          return p;
-        });
-
-      if (line.startsWith("## "))
-        return <h2 key={i} className="text-sm font-bold text-white mt-7 mb-2 pb-1 border-b border-gray-800">{inline(line.slice(3))}</h2>;
-      if (line.startsWith("### ")) {
-        const raw = line.slice(4).trim();
-        const tagMatch = raw.match(/\s·\s(CORE|ESSENTIAL|OPTIONAL)$/);
-        const tag = tagMatch ? tagMatch[1] : null;
-        const title = tag ? raw.slice(0, -tagMatch![0].length) : raw;
-        const tagColors: Record<string, string> = {
-          CORE: "bg-red-900/60 text-red-300 border-red-700/50",
-          ESSENTIAL: "bg-blue-900/60 text-blue-300 border-blue-700/50",
-          OPTIONAL: "bg-gray-800 text-gray-400 border-gray-700",
-        };
-        return (
-          <div key={i} className="flex items-baseline gap-2 mt-4 mb-0.5">
-            <h3 className="text-sm font-semibold text-blue-300 flex-1">{inline(title)}</h3>
-            {tag && <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium flex-shrink-0 ${tagColors[tag]}`}>{tag}</span>}
-          </div>
-        );
-      }
-      if (line.startsWith("#### "))
-        return <h4 key={i} className="text-xs font-bold text-violet-400 mt-5 mb-2 uppercase tracking-widest">{line.slice(5)}</h4>;
-      if (line.startsWith("- "))
-        return <li key={i} className="text-gray-400 ml-4 text-xs list-disc leading-relaxed">{inline(line.slice(2))}</li>;
-      if (line.startsWith("---")) return <hr key={i} className="border-gray-800 my-5" />;
-      if (line.trim() === "") return <div key={i} className="h-1" />;
-      return <p key={i} className="text-gray-400 text-xs leading-relaxed">{inline(line)}</p>;
-    });
+  function handleThemeClick(theme: ThemeItem) {
+    onStudyPlan(theme.name, selectedDomain, selectedL1);
+    onClose();
   }
 
-  const selectClass = "w-full bg-gray-800 border border-gray-700 focus:border-violet-500 rounded-lg px-3 py-2.5 text-sm text-white outline-none appearance-none cursor-pointer";
+  const selectClass =
+    "w-full bg-gray-800 border border-gray-700 focus:border-violet-500 rounded-lg px-3 py-2.5 text-sm text-white outline-none appearance-none cursor-pointer";
+
+  const showPicker = themes.length === 0 && !loading;
 
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl"
-        onClick={(e) => e.stopPropagation()}>
-
+      <div
+        className="bg-gray-900 border border-gray-700 rounded-xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="flex items-start justify-between px-4 py-3 border-b border-gray-700 flex-shrink-0">
           <div>
-            <p className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">Thematic Curriculum</p>
+            <p className="text-xs text-gray-500 uppercase tracking-wide mb-0.5">Themes</p>
             <h2 className="text-white font-semibold text-base">
-              {content || loading ? selectedL1 : "Trace a field across all of human knowledge"}
+              {themes.length > 0
+                ? `${themes.length} themes in ${selectedL1}`
+                : loading
+                ? `Finding themes in ${selectedL1}…`
+                : "Discover the deep themes of any field"}
             </h2>
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-white text-lg leading-none mt-1">✕</button>
+          <button onClick={onClose} className="text-gray-500 hover:text-white text-lg leading-none mt-1">
+            ✕
+          </button>
         </div>
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-4">
-          {!content && !loading && (
+          {showPicker && (
             <div className="space-y-3">
               <p className="text-gray-500 text-xs leading-relaxed">
-                Pick a domain and field — see how it manifests across mathematics, physics, biology, economics, philosophy, and wherever else it lives.
+                Pick a domain and field — Claude will surface every significant intellectual theme within it. Click any theme to generate its full study plan.
               </p>
 
               <div className="grid grid-cols-2 gap-3">
-                {/* Domain */}
                 <div>
                   <label className="block text-[11px] text-gray-500 mb-1.5 uppercase tracking-wide">Domain</label>
                   <select
                     value={selectedDomain}
-                    onChange={(e) => { setSelectedDomain(e.target.value); setSelectedL1(""); }}
+                    onChange={(e) => {
+                      setSelectedDomain(e.target.value);
+                      setSelectedL1("");
+                      setThemes([]);
+                    }}
                     className={selectClass}
                   >
                     <option value="">Select domain…</option>
@@ -137,12 +151,11 @@ export default function ThematicModal({ apiKey, onClose }: ThematicModalProps) {
                   </select>
                 </div>
 
-                {/* L1 */}
                 <div>
                   <label className="block text-[11px] text-gray-500 mb-1.5 uppercase tracking-wide">Field</label>
                   <select
                     value={selectedL1}
-                    onChange={(e) => setSelectedL1(e.target.value)}
+                    onChange={(e) => { setSelectedL1(e.target.value); setThemes([]); }}
                     disabled={!selectedDomain}
                     className={`${selectClass} disabled:opacity-40`}
                   >
@@ -164,39 +177,68 @@ export default function ThematicModal({ apiKey, onClose }: ThematicModalProps) {
                 {!apiKey
                   ? "Enter API key first"
                   : selectedL1
-                  ? `Trace "${selectedL1}" across all knowledge →`
+                  ? `Find themes in ${selectedL1} →`
                   : "Pick a domain and field above"}
               </button>
             </div>
           )}
 
-          {loading && !content && (
+          {/* Streaming skeleton while loading */}
+          {loading && themes.length === 0 && (
             <div className="flex items-center gap-2 text-gray-400 text-sm py-4">
               <span className="w-4 h-4 border border-gray-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
-              Tracing "{selectedL1}" across all of human knowledge…
+              Surfacing themes in {selectedL1}…
             </div>
           )}
 
-          {content && (
+          {/* Theme grid */}
+          {themes.length > 0 && (
             <div>
-              <div className="space-y-0.5">{renderContent(content)}</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {themes.map((t) => (
+                  <button
+                    key={t.name}
+                    onClick={() => handleThemeClick(t)}
+                    className="text-left bg-gray-800/60 hover:bg-violet-950/60 border border-gray-700/60 hover:border-violet-700/60 rounded-lg px-3 py-2.5 transition-colors group"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-gray-100 text-xs font-semibold group-hover:text-violet-200 transition-colors leading-snug">
+                        {t.name}
+                      </p>
+                      <span className="text-[10px] text-gray-600 group-hover:text-violet-500 transition-colors flex-shrink-0 mt-0.5">
+                        Study Plan →
+                      </span>
+                    </div>
+                    <p className="text-gray-500 text-[11px] leading-relaxed mt-0.5 group-hover:text-gray-400 transition-colors">
+                      {t.description}
+                    </p>
+                  </button>
+                ))}
+              </div>
+
               {loading && (
-                <div className="flex items-center gap-2 text-gray-400 text-xs mt-4">
-                  <span className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
-                  Generating…
+                <div className="flex items-center gap-2 text-gray-500 text-xs mt-3">
+                  <span className="w-3 h-3 border border-gray-500 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                  Loading more…
                 </div>
               )}
+
               {!loading && (
                 <div className="mt-4 pt-3 border-t border-gray-800 flex items-center justify-between">
-                  <button onClick={() => { setContent(""); setError(null); }}
-                    className="text-xs text-gray-600 hover:text-gray-400 transition-colors">
+                  <button
+                    onClick={() => { setThemes([]); setError(null); }}
+                    className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
+                  >
                     ← Choose a different field
                   </button>
-                  <button onClick={() => {
-                    localStorage.removeItem(`omni_thematic::${selectedL1.toLowerCase()}`);
-                    setContent("");
-                    generate();
-                  }} className="text-xs text-gray-600 hover:text-gray-400 transition-colors">
+                  <button
+                    onClick={() => {
+                      if (cacheKey) localStorage.removeItem(cacheKey);
+                      setThemes([]);
+                      generate();
+                    }}
+                    className="text-xs text-gray-600 hover:text-gray-400 transition-colors"
+                  >
                     Regenerate
                   </button>
                 </div>
