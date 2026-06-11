@@ -10,12 +10,15 @@ import LearningPathModal from "@/components/LearningPathModal";
 import DiscoverModal from "@/components/DiscoverModal";
 import ThematicModal from "@/components/ThematicModal";
 import GreatQuestionsModal from "@/components/GreatQuestionsModal";
+import UniversalMapModal from "@/components/UniversalMapModal";
+import WoundModal from "@/components/WoundModal";
 
 type Phase = "pick-domain" | "pick-l1" | "pick-l2" | "view-l3";
 
 interface ExplainTarget { term: string; l2?: string; }
 interface LearningPathTarget { term: string; l2?: string; }
 interface DiscoverTarget { term: string; l2?: string; }
+interface WoundTarget { term: string; l2?: string; }
 
 function cacheKey(domain: string, l1: string, l2?: string) {
   return l2 ? `omni_l3::${domain}::${l1}::${l2}` : `omni_l2::${domain}::${l1}`;
@@ -80,8 +83,10 @@ export default function Home() {
   const [explainTarget, setExplainTarget] = useState<ExplainTarget | null>(null);
   const [learningPathTarget, setLearningPathTarget] = useState<LearningPathTarget | null>(null);
   const [discoverTarget, setDiscoverTarget] = useState<DiscoverTarget | null>(null);
+  const [woundTarget, setWoundTarget] = useState<WoundTarget | null>(null);
   const [showThematic, setShowThematic] = useState(false);
   const [showGreatQuestions, setShowGreatQuestions] = useState(false);
+  const [showUniversalMap, setShowUniversalMap] = useState(false);
 
   // Wikipedia verification
   const [verifyMap, setVerifyMap] = useState<Record<string, VerifyStatus>>({});
@@ -365,7 +370,8 @@ export default function Home() {
                   k.startsWith("omni_wiki::") ||
                   k.startsWith("omni_prereq::") ||
                   k.startsWith("omni_plan::") ||
-                  k.startsWith("omni_discover::")
+                  k.startsWith("omni_discover::") ||
+                  k.startsWith("omni_wound::")
               );
               keys.forEach((k) => localStorage.removeItem(k));
               setDifficultyMap({});
@@ -409,73 +415,118 @@ export default function Home() {
 
         {/* PHASE: pick-domain */}
         {phase === "pick-domain" && (
-          <div>
-            <h2 className="text-2xl font-bold text-white mb-1">Every field of human knowledge, one click away</h2>
-            <p className="text-gray-500 text-sm mb-5">Navigate Domain → Field → Branch → Topic. Claude Sonnet generates everything on demand — nothing is preloaded.</p>
+          <div className="max-w-4xl mx-auto">
 
-            {/* Feature overview */}
-            <div className="mb-7 space-y-2">
-              {/* Learning Path — featured */}
-              <div className="bg-blue-950/40 border border-blue-800/50 rounded-xl p-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-7 h-7 rounded-lg bg-blue-700/40 border border-blue-600/40 flex items-center justify-center flex-shrink-0 mt-0.5 text-blue-300 text-sm">↗</div>
-                  <div>
-                    <p className="text-blue-200 text-sm font-semibold">Mastermind Study Plan</p>
-                    <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">An exhaustive 7-level curriculum for any topic — from absolute prerequisites to the current research frontier. Every book and paper with search links, what each teaches, what you need to know first. Covers Level 0 prerequisites through Level 6 research frontier and the three works that define the field.</p>
+            {/* ── Hero: The Map ── */}
+            <div
+              className="mb-8 rounded-2xl border border-indigo-700/50 bg-gradient-to-br from-indigo-950/80 via-gray-900 to-gray-950 p-7 cursor-pointer hover:border-indigo-600/70 transition-colors group"
+              onClick={() => setShowUniversalMap(true)}
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-indigo-400 text-lg">✦</span>
+                <span className="text-[11px] text-indigo-400/70 uppercase tracking-widest font-medium">Prime Feature</span>
+              </div>
+              <h2 className="text-2xl font-bold text-white mb-2 group-hover:text-indigo-200 transition-colors">The Map</h2>
+              <p className="text-gray-300 text-sm leading-relaxed mb-5 max-w-2xl">
+                The complete architecture of human knowledge — every intellectual root, canonical work, and grand question mapped across all fields and all time.
+              </p>
+
+              {/* Feature callouts */}
+              <div className="grid grid-cols-2 gap-3 mb-5 max-w-2xl">
+                <div className="rounded-xl border border-indigo-800/40 bg-indigo-950/30 px-4 py-3">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <span className="text-indigo-400 text-sm">◆</span>
+                    <p className="text-indigo-200 text-xs font-semibold">Core Ideas</p>
+                    <span className="text-[10px] text-indigo-400/40 ml-auto">4 lenses</span>
                   </div>
+                  <p className="text-gray-500 text-[11px] leading-relaxed">
+                    <span className="text-indigo-300/70">Root Questions</span>, <span className="text-indigo-300/70">Concepts</span>, <span className="text-indigo-300/70">Methods</span>, and <span className="text-indigo-300/70">Findings</span> — each lens produces a genuinely different map. Click any to trace its full cross-field curriculum.
+                  </p>
+                </div>
+                <div className="rounded-xl border border-amber-800/40 bg-amber-950/20 px-4 py-3">
+                  <div className="flex items-center gap-1.5 mb-1.5">
+                    <span className="text-amber-400 text-sm">≡</span>
+                    <p className="text-amber-200 text-xs font-semibold">The Canon</p>
+                    <span className="text-[10px] text-amber-400/40 ml-auto">per sub-field</span>
+                  </div>
+                  <p className="text-gray-500 text-[11px] leading-relaxed">
+                    Pick any sub-field — Abstract Algebra, Quantum Field Theory, Cognitive Science — and get its definitive reading list from introductory to research level. Track what you've read.
+                  </p>
                 </div>
               </div>
 
-              {/* Thematic Curricula + Genealogy — featured */}
-              <div className="bg-violet-950/40 border border-violet-800/50 rounded-xl p-4 cursor-pointer hover:bg-violet-950/60 transition-colors"
-                onClick={() => setShowThematic(true)}>
-                <div className="flex items-start gap-3">
-                  <div className="w-7 h-7 rounded-lg bg-violet-700/40 border border-violet-600/40 flex items-center justify-center flex-shrink-0 mt-0.5 text-violet-300 text-sm">◈</div>
-                  <div>
-                    <p className="text-violet-200 text-sm font-semibold">Themes &amp; Genealogy</p>
-                    <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">Pick a field and subfield — then choose <span className="text-violet-300">Themes</span> to surface 40+ deep intellectual themes and trace each across all of human knowledge, or <span className="text-amber-300">Genealogy</span> to trace the unbroken chain of thinkers and ideas that built the field, generation by generation.</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Great Questions — featured */}
-              <div className="bg-emerald-950/40 border border-emerald-800/50 rounded-xl p-4 cursor-pointer hover:bg-emerald-950/60 transition-colors"
-                onClick={() => setShowGreatQuestions(true)}>
-                <div className="flex items-start gap-3">
-                  <div className="w-7 h-7 rounded-lg bg-emerald-700/40 border border-emerald-600/40 flex items-center justify-center flex-shrink-0 mt-0.5 text-emerald-300 text-sm">?</div>
-                  <div>
-                    <p className="text-emerald-200 text-sm font-semibold">The Great Questions</p>
-                    <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">The fundamental questions a field can't stop asking — the ones that resist easy answers and that the best minds carry for their entire careers. Pick a field to see its 20+ deep open questions, then click any question to see every angle: what each discipline says, the closest attempts, and why it stays open.</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Other features — compact row */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {[
-                  { label: "Explain Me", desc: "Deep beginner explanation for any topic", dot: "bg-yellow-500" },
-                  { label: "Discover", desc: "26 ways to explore — origin story, careers, papers, quiz, and more", dot: "bg-violet-500" },
-                  { label: "Wikipedia Verified", desc: "Every topic checked — real field or hallucination", dot: "bg-green-500" },
-                  { label: "7 Academic Search Links", desc: "Scholar, Semantic Scholar, OpenAlex, CORE, Inciteful, Talpa, WorldCat", dot: "bg-gray-400" },
-                ].map((f) => (
-                  <div key={f.label} className="bg-gray-800/50 border border-gray-700/50 rounded-lg p-2.5">
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${f.dot}`} />
-                      <p className="text-gray-200 text-xs font-medium">{f.label}</p>
-                    </div>
-                    <p className="text-gray-600 text-[11px] leading-relaxed">{f.desc}</p>
-                  </div>
-                ))}
+              <div className="inline-flex items-center gap-2 text-sm text-indigo-300 font-medium group-hover:text-indigo-200 transition-colors">
+                Open The Map <span className="text-base">→</span>
               </div>
             </div>
 
-            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-3">Select a Domain</h3>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+            {/* ── Secondary features ── */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+              <div
+                className="rounded-xl border border-violet-800/40 bg-violet-950/30 hover:bg-violet-950/50 p-4 cursor-pointer transition-colors group"
+                onClick={() => setShowThematic(true)}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-violet-400 text-base">◈</span>
+                  <p className="text-violet-200 text-sm font-semibold">Themes &amp; Genealogy</p>
+                </div>
+                <p className="text-gray-500 text-xs leading-relaxed">
+                  Surface 40+ deep intellectual themes in any field and trace each across all knowledge, or trace the unbroken chain of thinkers that built the field — generation by generation.
+                </p>
+              </div>
+
+              <div
+                className="rounded-xl border border-emerald-800/40 bg-emerald-950/30 hover:bg-emerald-950/50 p-4 cursor-pointer transition-colors group"
+                onClick={() => setShowGreatQuestions(true)}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-emerald-400 text-base">?</span>
+                  <p className="text-emerald-200 text-sm font-semibold">The Great Questions</p>
+                </div>
+                <p className="text-gray-500 text-xs leading-relaxed">
+                  The fundamental questions a field can't stop asking — the ones the best minds carry for entire careers. Click any question to see every angle, every attempt, and why it stays open.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-blue-800/40 bg-blue-950/30 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-blue-400 text-base">↗</span>
+                  <p className="text-blue-200 text-sm font-semibold">Mastermind Study Plan</p>
+                </div>
+                <p className="text-gray-500 text-xs leading-relaxed">
+                  A 7-level curriculum for any topic — from absolute prerequisites to the research frontier. Every book and paper, what each teaches, what to read first. Available on any topic card below.
+                </p>
+              </div>
+
+              <div className="rounded-xl border border-rose-900/30 bg-rose-950/10 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-rose-700/70 text-base">◈</span>
+                  <p className="text-rose-200/70 text-sm font-semibold">The Wound</p>
+                </div>
+                <p className="text-gray-500 text-xs leading-relaxed">
+                  The structural aporia at the heart of any field — the question it cannot answer with its own methods, its load-bearing metaphor, and the three works that confront the limit honestly.
+                </p>
+              </div>
+            </div>
+
+            {/* ── Browse taxonomy ── */}
+            <div className="mb-4 flex items-baseline justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-white">Browse the Taxonomy</h3>
+                <p className="text-gray-600 text-xs mt-0.5">Navigate Domain → Field → Branch → Topic. Everything generated on demand by Claude.</p>
+              </div>
+              <div className="flex items-center gap-3 text-[11px] text-gray-600">
+                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-yellow-500 inline-block" /> Explain Me</span>
+                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-violet-500 inline-block" /> Discover</span>
+                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" /> Wikipedia verify</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
               {TAXONOMY_SEED.map((s) => (
                 <button key={s.domain} onClick={() => pickDomain(s.domain)}
-                  className="bg-gray-900 hover:bg-gray-800 border border-gray-700 hover:border-blue-600 rounded-xl p-4 text-left transition-all group">
-                  <p className="font-semibold text-white group-hover:text-blue-300 transition-colors">{s.domain}</p>
-                  <p className="text-xs text-gray-500 mt-1">{s.l1.length} fields</p>
+                  className="bg-gray-900 hover:bg-gray-800 border border-gray-800 hover:border-gray-600 rounded-xl p-4 text-left transition-all group">
+                  <p className="font-semibold text-gray-200 group-hover:text-white transition-colors text-sm">{s.domain}</p>
+                  <p className="text-xs text-gray-600 mt-1">{s.l1.length} fields</p>
                 </button>
               ))}
             </div>
@@ -556,6 +607,10 @@ export default function Home() {
                         className="text-xs bg-gray-800 hover:bg-violet-900 hover:text-violet-300 text-gray-400 px-2.5 py-1 rounded-lg transition-colors border border-gray-700 hover:border-violet-700">
                         Discover
                       </button>
+                      <button onClick={() => setWoundTarget({ term: l2 })}
+                        className="text-xs bg-gray-800 hover:bg-rose-950/60 hover:text-rose-300 text-gray-500 px-2.5 py-1 rounded-lg transition-colors border border-gray-700 hover:border-rose-900/60">
+                        ◈ The Wound
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -623,6 +678,10 @@ export default function Home() {
                         className="text-xs bg-gray-800 hover:bg-violet-900 hover:text-violet-300 text-gray-400 px-2.5 py-1 rounded-lg transition-colors border border-gray-700 hover:border-violet-700">
                         Discover
                       </button>
+                      <button onClick={() => setWoundTarget({ term: l3, l2: selectedL2 })}
+                        className="text-xs bg-gray-800 hover:bg-rose-950/60 hover:text-rose-300 text-gray-500 px-2.5 py-1 rounded-lg transition-colors border border-gray-700 hover:border-rose-900/60">
+                        ◈ The Wound
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -670,6 +729,19 @@ export default function Home() {
       )}
       {showGreatQuestions && (
         <GreatQuestionsModal apiKey={apiKey} onClose={() => setShowGreatQuestions(false)} />
+      )}
+      {showUniversalMap && (
+        <UniversalMapModal apiKey={apiKey} onClose={() => setShowUniversalMap(false)} />
+      )}
+      {woundTarget && (
+        <WoundModal
+          term={woundTarget.term}
+          domain={selectedDomain}
+          l1={selectedL1}
+          l2={woundTarget.l2}
+          apiKey={apiKey}
+          onClose={() => setWoundTarget(null)}
+        />
       )}
     </div>
   );
