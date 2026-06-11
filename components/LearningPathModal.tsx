@@ -54,6 +54,7 @@ export default function LearningPathModal({
   const [background, setBackground] = useState("");
   const [goal, setGoal] = useState("");
   const [learningStyle, setLearningStyle] = useState("");
+  const [depth, setDepth] = useState<"foundation" | "working" | "research" | "complete">("complete");
   const [planText, setPlanText] = useState("");
   const [planLoading, setPlanLoading] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
@@ -168,7 +169,7 @@ export default function LearningPathModal({
   }
 
   async function fetchStudyPlan() {
-    const profileKey = `${hoursPerWeek}::${background}::${goal}::${learningStyle}`;
+    const profileKey = `${hoursPerWeek}::${background}::${goal}::${learningStyle}::${depth}`;
     const key = `omni_plan::${domain}::${l1}::${l2 ?? ""}::${term}::${profileKey}`;
     const cached = localStorage.getItem(key);
     if (cached) { setPlanText(cached); return; }
@@ -180,32 +181,27 @@ export default function LearningPathModal({
     setPlanError(null);
 
     const sep = "\n\n---\n\n";
+    const depthParts: Record<string, number> = { foundation: 2, working: 3, research: 5, complete: 6 };
+    const limit = depthParts[depth] ?? 6;
+
     try {
-      const part1 = await streamPart(1, [], (t) => setPlanText(t));
+      const parts: string[] = [];
+      const allTitles: string[] = [];
 
-      const titles1 = extractTitles(part1);
-      setPlanText(part1 + sep);
-      const part2 = await streamPart(2, titles1, (t) => setPlanText(part1 + sep + t));
+      for (let p = 1; p <= limit; p++) {
+        const coveredForThisPart = p === 6 ? [] : [...allTitles];
+        const prev = [...parts];
+        const current = await streamPart(p, coveredForThisPart, (t) => {
+          setPlanText([...prev, t].join(sep));
+        });
+        parts.push(current);
+        if (p < limit) {
+          allTitles.push(...extractTitles(current));
+          setPlanText(parts.join(sep) + sep);
+        }
+      }
 
-      const titles2 = [...titles1, ...extractTitles(part2)];
-      setPlanText(part1 + sep + part2 + sep);
-      const part3 = await streamPart(3, titles2, (t) => setPlanText(part1 + sep + part2 + sep + t));
-
-      const titles3 = [...titles2, ...extractTitles(part3)];
-      setPlanText(part1 + sep + part2 + sep + part3 + sep);
-      const part4 = await streamPart(4, titles3, (t) => setPlanText(part1 + sep + part2 + sep + part3 + sep + t));
-
-      const titles4 = [...titles3, ...extractTitles(part4)];
-      setPlanText(part1 + sep + part2 + sep + part3 + sep + part4 + sep);
-      const part5 = await streamPart(5, titles4, (t) => setPlanText(part1 + sep + part2 + sep + part3 + sep + part4 + sep + t));
-
-      const titles5 = [...titles4, ...extractTitles(part5)];
-      setPlanText(part1 + sep + part2 + sep + part3 + sep + part4 + sep + part5 + sep);
-      // Part 6 is pure synthesis — may intentionally revisit works from earlier parts
-      const part6 = await streamPart(6, [], (t) => setPlanText(part1 + sep + part2 + sep + part3 + sep + part4 + sep + part5 + sep + t));
-
-      void titles5; // tracked but not passed to part6
-      const full = part1 + sep + part2 + sep + part3 + sep + part4 + sep + part5 + sep + part6;
+      const full = parts.join(sep);
       localStorage.setItem(key, full);
     } catch (err) {
       setPlanError(err instanceof Error ? err.message : "Generation failed");
@@ -667,97 +663,169 @@ export default function LearningPathModal({
           {/* STUDY PLAN */}
           {tab === "plan" && (
             <div className="space-y-5">
-              {/* Intake form — always visible so they can change answers */}
+              {/* Intake form */}
               {!planText && !planLoading && (
-                <div className="space-y-4">
-                  <p className="text-gray-400 text-xs uppercase tracking-widest font-semibold">Your Learning Profile</p>
+                <div className="space-y-5">
 
-                  {/* Background */}
+                  {/* Header */}
+                  <div className="pb-3 border-b border-gray-800">
+                    <p className="text-white font-semibold text-sm">Your Mastery Map</p>
+                    <p className="text-gray-500 text-xs mt-0.5">A personalised six-part curriculum from prerequisites to the research frontier — tailored to your level, goal, and available time.</p>
+                  </div>
+
+                  {/* Depth */}
                   <div>
-                    <p className="text-gray-500 text-xs mb-2">Your background with {term}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {["Complete beginner", "Know the basics", "Have some experience"].map((opt) => (
+                    <p className="text-gray-400 text-[11px] uppercase tracking-widest font-semibold mb-2">How far do you want to go?</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {([
+                        {
+                          value: "foundation",
+                          label: "Foundation",
+                          range: "Levels 0–2 · Parts 1–2",
+                          bullets: ["Field orientation & your path", "Prerequisites, first contact, core texts", "Milestones + practice checks"],
+                        },
+                        {
+                          value: "working",
+                          label: "Working Knowledge",
+                          range: "Levels 0–3 · Parts 1–3",
+                          bullets: ["Everything in Foundation", "+ Specialisations map", "+ Live intellectual debates + Level 3"],
+                        },
+                        {
+                          value: "research",
+                          label: "Research Depth",
+                          range: "Levels 0–6 · Parts 1–5",
+                          bullets: ["Everything in Working Knowledge", "+ Advanced depth & seminal papers", "+ Frontier surveys + tacit knowledge"],
+                        },
+                        {
+                          value: "complete",
+                          label: "Complete Mastery",
+                          range: "All 6 parts",
+                          bullets: ["Everything in Research Depth", "+ Deep intellectual themes", "+ The Horizon (structural limits)"],
+                          recommended: true,
+                        },
+                      ] as const).map((opt) => (
                         <button
-                          key={opt}
-                          onClick={() => setBackground(opt)}
-                          className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
-                            background === opt
-                              ? "bg-blue-700 border-blue-600 text-white"
-                              : "border-gray-600 text-gray-400 hover:border-gray-400 hover:text-gray-200"
+                          key={opt.value}
+                          onClick={() => setDepth(opt.value)}
+                          className={`text-left p-3 rounded-lg border transition-all ${
+                            depth === opt.value
+                              ? "bg-blue-900/25 border-blue-500/60"
+                              : "border-gray-700/60 hover:border-gray-600"
                           }`}
                         >
-                          {opt}
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <span className={`text-sm font-semibold ${depth === opt.value ? "text-white" : "text-gray-300"}`}>{opt.label}</span>
+                            {"recommended" in opt && opt.recommended && (
+                              <span className="text-[9px] bg-blue-900/50 text-blue-400 border border-blue-800/50 rounded px-1 py-0.5 font-medium">recommended</span>
+                            )}
+                          </div>
+                          <div className={`text-[10px] mb-1.5 ${depth === opt.value ? "text-blue-400/70" : "text-gray-600"}`}>{opt.range}</div>
+                          <ul className="space-y-0.5">
+                            {opt.bullets.map((b, bi) => (
+                              <li key={bi} className={`text-[10px] leading-relaxed ${depth === opt.value ? "text-gray-400" : "text-gray-600"}`}>{b}</li>
+                            ))}
+                          </ul>
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  {/* Goal */}
+                  {/* Current level */}
                   <div>
-                    <p className="text-gray-500 text-xs mb-2">My goal</p>
-                    <div className="flex flex-wrap gap-2">
-                      {["Understand it conceptually", "Build job skills", "Academic mastery", "Satisfy curiosity"].map((opt) => (
+                    <p className="text-gray-400 text-[11px] uppercase tracking-widest font-semibold mb-2">Your current level</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {([
+                        { value: "No background in this field", label: "No background", sub: "Starting from zero" },
+                        { value: "Familiar with Level 1–2 basics", label: "Level 1–2 basics", sub: "Have first contact & foundations" },
+                        { value: "Have working knowledge (Level 3)", label: "Working knowledge", sub: "Can solve real problems already" },
+                        { value: "Advanced / graduate level (Level 4+)", label: "Advanced / graduate", sub: "Level 4+ or equivalent" },
+                      ] as const).map((opt) => (
                         <button
-                          key={opt}
-                          onClick={() => setGoal(opt)}
-                          className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
-                            goal === opt
-                              ? "bg-blue-700 border-blue-600 text-white"
-                              : "border-gray-600 text-gray-400 hover:border-gray-400 hover:text-gray-200"
+                          key={opt.value}
+                          onClick={() => setBackground(opt.value)}
+                          className={`text-left px-3 py-2 rounded-lg border text-xs transition-all ${
+                            background === opt.value
+                              ? "bg-blue-900/25 border-blue-500/60 text-white"
+                              : "border-gray-700/60 text-gray-400 hover:border-gray-600"
                           }`}
                         >
-                          {opt}
+                          <div className="font-medium">{opt.label}</div>
+                          <div className={`text-[10px] mt-0.5 ${background === opt.value ? "text-blue-400/70" : "text-gray-600"}`}>{opt.sub}</div>
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  {/* Hours */}
+                  {/* Goal / Track */}
                   <div>
-                    <p className="text-gray-500 text-xs mb-2">Hours per week</p>
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {[5, 10, 20, 40].map((h) => (
+                    <p className="text-gray-400 text-[11px] uppercase tracking-widest font-semibold mb-2">Your goal — sets your track</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {([
+                        { value: "Understand it conceptually", label: "Conceptual depth", sub: "Explorer track — breadth & synthesis", color: "violet" },
+                        { value: "Build job skills", label: "Career skills", sub: "Practitioner track — applied & production", color: "green" },
+                        { value: "Academic mastery", label: "Academic mastery", sub: "Research track — theory & original work", color: "amber" },
+                        { value: "Satisfy curiosity", label: "Intellectual curiosity", sub: "Explorer track — ideas & connections", color: "violet" },
+                      ] as const).map((opt) => (
                         <button
-                          key={h}
-                          onClick={() => setHoursPerWeek(h)}
-                          className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
-                            hoursPerWeek === h
-                              ? "bg-blue-700 border-blue-600 text-white"
-                              : "border-gray-600 text-gray-400 hover:border-gray-400 hover:text-gray-200"
+                          key={opt.value}
+                          onClick={() => setGoal(opt.value)}
+                          className={`text-left px-3 py-2 rounded-lg border text-xs transition-all ${
+                            goal === opt.value
+                              ? "bg-blue-900/25 border-blue-500/60 text-white"
+                              : "border-gray-700/60 text-gray-400 hover:border-gray-600"
                           }`}
                         >
-                          {h}h
+                          <div className="font-medium">{opt.label}</div>
+                          <div className={`text-[10px] mt-0.5 ${goal === opt.value ? "text-blue-400/70" : "text-gray-600"}`}>{opt.sub}</div>
                         </button>
                       ))}
-                      <input
-                        type="number"
-                        value={hoursPerWeek}
-                        onChange={(e) => setHoursPerWeek(Math.max(1, Math.min(80, Number(e.target.value) || 1)))}
-                        className="w-14 bg-gray-800 border border-gray-600 rounded-full px-2 py-1 text-white text-xs text-center"
-                        min={1}
-                        max={80}
-                        placeholder="custom"
-                      />
                     </div>
                   </div>
 
-                  {/* Learning style */}
-                  <div>
-                    <p className="text-gray-500 text-xs mb-2">I learn best by</p>
-                    <div className="flex flex-wrap gap-2">
-                      {["Reading books", "Watching videos", "Building things", "Mix of everything"].map((opt) => (
-                        <button
-                          key={opt}
-                          onClick={() => setLearningStyle(opt)}
-                          className={`text-xs px-3 py-1.5 rounded-full border transition-colors ${
-                            learningStyle === opt
-                              ? "bg-blue-700 border-blue-600 text-white"
-                              : "border-gray-600 text-gray-400 hover:border-gray-400 hover:text-gray-200"
-                          }`}
-                        >
-                          {opt}
-                        </button>
-                      ))}
+                  {/* Hours + Learning style — compact row */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-gray-400 text-[11px] uppercase tracking-widest font-semibold mb-2">Hours per week</p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {[5, 10, 20, 40].map((h) => (
+                          <button
+                            key={h}
+                            onClick={() => setHoursPerWeek(h)}
+                            className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                              hoursPerWeek === h
+                                ? "bg-blue-700 border-blue-600 text-white"
+                                : "border-gray-700 text-gray-500 hover:border-gray-500 hover:text-gray-300"
+                            }`}
+                          >
+                            {h}h
+                          </button>
+                        ))}
+                        <input
+                          type="number"
+                          value={hoursPerWeek}
+                          onChange={(e) => setHoursPerWeek(Math.max(1, Math.min(80, Number(e.target.value) || 1)))}
+                          className="w-12 bg-gray-800 border border-gray-700 rounded-full px-2 py-0.5 text-white text-xs text-center"
+                          min={1} max={80}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-gray-400 text-[11px] uppercase tracking-widest font-semibold mb-2">I learn best by</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {["Reading", "Watching", "Building", "All of these"].map((opt) => (
+                          <button
+                            key={opt}
+                            onClick={() => setLearningStyle(opt)}
+                            className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                              learningStyle === opt
+                                ? "bg-blue-700 border-blue-600 text-white"
+                                : "border-gray-700 text-gray-500 hover:border-gray-500 hover:text-gray-300"
+                            }`}
+                          >
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
@@ -766,7 +834,7 @@ export default function LearningPathModal({
                     disabled={!background || !goal || !learningStyle || !apiKey}
                     className="w-full bg-blue-700 hover:bg-blue-600 disabled:opacity-40 text-white text-sm py-2.5 rounded-lg transition-colors font-medium"
                   >
-                    {apiKey ? "Build My Mastermind Plan →" : "Enter API key first"}
+                    {apiKey ? "Build My Mastery Map →" : "Enter API key first"}
                   </button>
                 </div>
               )}
