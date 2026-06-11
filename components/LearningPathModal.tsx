@@ -195,7 +195,17 @@ export default function LearningPathModal({
       setPlanText(part1 + sep + part2 + sep + part3 + sep);
       const part4 = await streamPart(4, titles3, (t) => setPlanText(part1 + sep + part2 + sep + part3 + sep + t));
 
-      const full = part1 + sep + part2 + sep + part3 + sep + part4;
+      const titles4 = [...titles3, ...extractTitles(part4)];
+      setPlanText(part1 + sep + part2 + sep + part3 + sep + part4 + sep);
+      const part5 = await streamPart(5, titles4, (t) => setPlanText(part1 + sep + part2 + sep + part3 + sep + part4 + sep + t));
+
+      const titles5 = [...titles4, ...extractTitles(part5)];
+      setPlanText(part1 + sep + part2 + sep + part3 + sep + part4 + sep + part5 + sep);
+      // Part 6 is pure synthesis — may intentionally revisit works from earlier parts
+      const part6 = await streamPart(6, [], (t) => setPlanText(part1 + sep + part2 + sep + part3 + sep + part4 + sep + part5 + sep + t));
+
+      void titles5; // tracked but not passed to part6
+      const full = part1 + sep + part2 + sep + part3 + sep + part4 + sep + part5 + sep + part6;
       localStorage.setItem(key, full);
     } catch (err) {
       setPlanError(err instanceof Error ? err.message : "Generation failed");
@@ -253,7 +263,7 @@ export default function LearningPathModal({
         const m = line.match(/·\s(CORE|ESSENTIAL|OPTIONAL)/);
         const tag = m?.[1];
         skip = planFilter === "core" ? tag !== "CORE" : tag === "OPTIONAL";
-      } else if (line.startsWith("## ") || line.startsWith("---")) {
+      } else if (line.startsWith("## ") || line.startsWith("#### ") || line.startsWith("---")) {
         skip = false;
       }
       if (!skip) out.push(line);
@@ -787,13 +797,19 @@ export default function LearningPathModal({
                   {planLoading && (
                     <div className="flex items-center gap-2 text-gray-400 text-xs mt-4">
                       <span className="w-3 h-3 border border-gray-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
-                      {planText.includes("Level 6") || planText.includes("The Three That Define")
-                        ? "Loading research frontier and canon…"
+                      {planText.includes("The Deep Themes") || planText.includes("The Horizon")
+                        ? "Building synthesis layer: themes and the horizon…"
+                        : planText.includes("Tacit Knowledge") || planText.includes("The Three That Define")
+                        ? "Loading frontier and tacit knowledge…"
+                        : planText.includes("Level 6") || planText.includes("Research Frontier")
+                        ? "Loading research frontier…"
                         : planText.includes("Level 5") || planText.includes("Papers Everyone Cites")
-                        ? "Loading research frontier and canon…"
-                        : planText.includes("Level 3") || planText.includes("Level 4")
-                        ? "Loading seminal papers…"
-                        : "Loading working knowledge and advanced depth…"}
+                        ? "Loading seminal papers and advanced depth…"
+                        : planText.includes("Great Debates") || planText.includes("Level 3")
+                        ? "Mapping debates and working knowledge…"
+                        : planText.includes("Level 2") || planText.includes("Foundation")
+                        ? "Building the foundation…"
+                        : "Building field orientation and prerequisites…"}
                     </div>
                   )}
                   {!planLoading && (
