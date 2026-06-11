@@ -44,9 +44,11 @@ The user provides their own Anthropic API key (BYOK), stored in `localStorage` o
 | `app/api/generate/route.ts` | Streams L2 or L3 JSON array from Claude |
 | `app/api/explain/route.ts` | Streams beginner explanation from Claude |
 | `app/api/prerequisites/route.ts` | Streams prerequisite chain + difficulty JSON |
-| `app/api/studyplan/route.ts` | Streams exhaustive literature curriculum (4-part) |
+| `app/api/studyplan/route.ts` | Streams 6-part Mastery Map curriculum with track system |
 | `app/api/bookprereqs/route.ts` | Streams prerequisite works for a specific book/paper |
 | `app/api/discover/route.ts` | All Discover features — dispatches by `feature` param |
+| `app/api/decoder/route.ts` | Streams 6-section paper/book decoder (placement, prereqs, context) |
+| `app/api/readingchain/route.ts` | Streams reading chain (generate or insert mode) |
 | `components/SearchLinks.tsx` | Row of 7 academic search buttons |
 | `components/VerifyBadge.tsx` | Wikipedia status badge (✓ / ? / ✗) |
 | `components/ExplainModal.tsx` | Streaming explanation modal |
@@ -55,6 +57,8 @@ The user provides their own Anthropic API key (BYOK), stored in `localStorage` o
 | `components/UniversalMapModal.tsx` | The Map — 4-tab modal: Core Ideas, The Canon, Theoretical Minimum, Grand Questions |
 | `components/ThematicModal.tsx` | Themes & Genealogy modal |
 | `components/GreatQuestionsModal.tsx` | Great Questions modal |
+| `components/DecoderModal.tsx` | Decoder modal — two-step: input form → streaming 6-section result |
+| `components/ReadingChainModal.tsx` | Reading Chain modal — vertical card flow + place-a-paper input |
 | `app/api/coreideas/route.ts` | Streams root ideas NDJSON for 4 resolution modes |
 | `app/api/canon/route.ts` | Streams influential works NDJSON for a chosen sub-field |
 | `app/api/thematic/route.ts` | Streams thematic analysis |
@@ -125,7 +129,9 @@ return new Response(stream, {
 | `omni_l3::domain::l1::l2` | Generated L3 array (JSON) |
 | `omni_wiki::term` | Wikipedia result `{status, url}` (JSON) |
 | `omni_prereq::domain::l1::l2::term` | Prerequisite chain + difficulty (JSON) |
-| `omni_plan::domain::l1::l2::term::hours::background::goal::learningStyle` | Full study plan markdown (all 4 parts) |
+| `omni_plan::domain::l1::l2::term::hours::background::goal::learningStyle::depth` | Full study plan markdown (up to 6 parts, cached per depth) |
+| `omni_decoder::${normalizedTitle}` | Decoder result for a paper/book (title normalized to lowercase_underscore) |
+| `omni_chain::domain::l1::l2::term` | Reading chain markdown for a topic |
 | `omni_discover::domain::l1::l2::term::feature` | Discover modal result |
 | `omni_discover::domain::l1::l2::term::feature::param` | Discover result (param features) |
 | `omni_bookmarks` | JSON array of bookmarked topic strings |
@@ -136,7 +142,7 @@ return new Response(stream, {
 | `omni_universalquestions` | Grand Questions markdown |
 | `omni_theoreticalminimum` | Theoretical Minimum markdown |
 
-The **Reset Cache** button clears all `omni_l2::`, `omni_l3::`, `omni_wiki::`, `omni_prereq::`, `omni_plan::`, `omni_discover::` keys.
+The **Reset Cache** button clears all `omni_l2::`, `omni_l3::`, `omni_wiki::`, `omni_prereq::`, `omni_plan::`, `omni_discover::`, `omni_wound::`, `omni_decoder::`, `omni_chain::` keys.
 
 ---
 
@@ -168,22 +174,31 @@ Body: `{ apiKey, term, domain, l1, l2? }`
 - Extract JSON with `text.indexOf("{")` / `text.lastIndexOf("}")` — Claude may emit text before the JSON.
 
 ### `POST /api/studyplan`
-Body: `{ apiKey, term, domain, l1, l2?, hoursPerWeek, background, goal, learningStyle, part, coveredTitles[] }`
+Body: `{ apiKey, term, domain, l1, l2?, hoursPerWeek, background, goal, learningStyle, depth, part, coveredTitles[] }`
 
-Generates an exhaustive 7-level literature curriculum in **4 sequential parts**:
+Generates the **Mastery Map** — a 6-part personalised curriculum with a track system. `depth` controls how many parts are generated: `foundation`=2, `working`=3, `research`=5, `complete`=6.
 
-| Part | Levels | Content |
-|------|--------|---------|
-| 1 | 0, 1, 2 | Prerequisites → First Contact → Foundation |
-| 2 | 3, 4 | Working Knowledge → Advanced Depth |
-| 3 | 5 | The Papers Everyone Cites (seminal papers only) |
-| 4 | 6 + Canon | Research Frontier + The Three That Define the Field |
+**Track system:** `goal` maps to a track that shapes resource selection from Level 3 onward:
+- `"Academic mastery"` → `RESEARCH` (theoretical rigour, math foundations, opens research directions)
+- `"Build job skills"` → `PRACTITIONER` (applied works, production implementations, professional practice)
+- anything else → `EXPLORER` (synthesis, cross-disciplinary, conceptual breadth)
 
-**Resource format:** Each resource uses `### Title — Author(s) (Year) · TAG` where TAG is `CORE`, `ESSENTIAL`, or `OPTIONAL`.
+| Part | Content |
+|------|---------|
+| 1 | Field Orientation (3 paragraphs) + Your Path (track-aware) + Levels 0–1 + `#### MILESTONE: FIRST CONTACT` |
+| 2 | Level 2 + `#### MILESTONE: FOUNDATION COMPLETE` + `#### FOUNDATION PRACTICE` (3 concrete tasks) |
+| 3 | Specialisations map + `## The Great Debates` (4–6 debates with `#### DEBATE: [NAME]`) + Level 3 track-aware |
+| 4 | Level 4 + Level 5 + `#### MILESTONE: RESEARCH READY` |
+| 5 | Level 6 + The Three That Define + `## Tacit Knowledge` (4–6 unwritten expert knowledge) |
+| 6 | Deep Themes (4–6) + The Horizon (aporia + metaphor + works from any era/language) |
 
-**Deduplication:** `coveredTitles[]` is a list of all `### Title —` header strings from prior parts. Each part's prompt includes a `CRITICAL — do NOT include` block listing them. The frontend calls `extractTitles(text)` (regex on `^### .+$`) after each part and passes the accumulated list to the next.
+**Resource format:** `### Title — Author(s) (Year) · TAG` where TAG is `CORE`, `ESSENTIAL`, or `OPTIONAL`. Part 6 receives `coveredTitles = []` so themes/horizon can reference curriculum works freely.
 
-**Why 4 parts:** 8192 tokens per part. Rich fields overflow a single-part budget; splitting ensures no level is cut. Level 5 (seminal papers) gets its own part because it can easily fill 8192 tokens alone.
+**Deduplication:** `coveredTitles[]` carries all `### Title —` headers from prior parts. Accumulated via `extractTitles(text)` (regex `^### .+$`). Part 6 intentionally skips deduplication.
+
+**filterPlanText fix:** `####` lines (milestones, debates) must reset `skip = false` — they were silently hidden when a previous OPTIONAL block set `skip = true`. This is already fixed; do not revert.
+
+**Loop-based fetchStudyPlan:** Uses `for (let p = 1; p <= limit; p++)` with `const prev = [...parts]` closure snapshot so in-progress streaming displays correctly alongside completed parts.
 
 ### `POST /api/bookprereqs`
 Body: `{ apiKey, title, term, domain, l1 }`
@@ -191,28 +206,49 @@ Body: `{ apiKey, title, term, domain, l1 }`
 - Format: `**Title — Author (Year)** [TAG]: one sentence on what it provides`
 - Used by the ↳ prereqs toggle on each resource in the Study Plan tab
 
+### `POST /api/decoder`
+Body: `{ apiKey, title, abstract? }`
+- Streams a 6-section paper/book decoder — curriculum placement, prerequisites, intellectual context
+- Sections: `## PLAIN LANGUAGE SUMMARY` → `## CURRICULUM PLACEMENT` → `## WHAT YOU NEED FIRST` → `## WHAT IT RESPONDED TO` → `## WHAT IT OPENED UP` → `## READINESS CHECK`
+- `## CURRICULUM PLACEMENT` always emits `**Field:** Domain → L1 → L2` — this is parsed by `extractPlacement()` in DecoderModal to populate the "View Reading Chain →" button
+- `max_tokens: 4096`
+
+### `POST /api/readingchain`
+Body: `{ apiKey, term, domain, l1, l2?, mode, insertTitle?, existingChain? }`
+- `mode: "generate"` — streams a linear reading chain for the topic; no length cap, let subject determine depth
+- `mode: "insert"` — places `insertTitle` into `existingChain`; returns `**Fits between:** A → B` + `**Why here:**` + the new chain entry in standard format
+- Entry format: `### Title — Author(s) (Year)` + optional `· Language` + `**Requires:**` + `**Contributes:**` + `**Enables:**`; entries separated by `\n---\n`
+- `max_tokens: 8192`
+
 ---
 
-## LearningPathModal — Study Plan Tab
+## LearningPathModal — Study Plan Tab (Mastery Map)
 
-The 4-question intake form:
-- Background: Complete beginner / Know the basics / Have some experience
-- Goal: Understand conceptually / Build job skills / Academic mastery / Satisfy curiosity
-- Hours/week: preset buttons (5/10/20/40) + custom number input
-- Learning style: Reading books / Watching videos / Building things / Mix of everything
+The 5-field intake form (rebuilt):
+1. **Depth** — 2×2 card grid: Foundation (2 parts) / Working Knowledge (3 parts) / Research Depth (5 parts) / Complete Mastery (6 parts, recommended badge)
+2. **Current level** — 4 cards: No background / Level 1–2 basics / Working knowledge / Advanced graduate
+3. **Goal** — 4 cards that show track name: Explorer / Practitioner / Research (maps to `EXPLORER`/`PRACTITIONER`/`RESEARCH` track)
+4. **Hours/week** — compact row: 5h / 10h / 20h / 40h + custom input
+5. **Learning style** — compact row: Reading / Videos / Building / Mix
 
-The "Build My Mastermind Plan →" button is disabled until all 4 are selected.
+Button: "Build My Mastery Map →", disabled until all 5 selected.
 
-**4-part chaining in `fetchStudyPlan()`:**
+**Loop-based chaining in `fetchStudyPlan()`:**
 ```typescript
-const part1 = await streamPart(1, [], ...);
-const titles1 = extractTitles(part1);
-const part2 = await streamPart(2, titles1, ...);
-const titles2 = [...titles1, ...extractTitles(part2)];
-const part3 = await streamPart(3, titles2, ...);
-const titles3 = [...titles2, ...extractTitles(part3)];
-const part4 = await streamPart(4, titles3, ...);
+const depthParts = { foundation: 2, working: 3, research: 5, complete: 6 };
+const limit = depthParts[depth] ?? 6;
+for (let p = 1; p <= limit; p++) {
+  const coveredForThisPart = p === 6 ? [] : [...allTitles];
+  const prev = [...parts]; // closure snapshot for streaming display
+  const current = await streamPart(p, coveredForThisPart, (t) => {
+    setPlanText([...prev, t].join(sep));
+  });
+  parts.push(current);
+  if (p < limit) allTitles.push(...extractTitles(current));
+}
 ```
+
+**Cache key:** `omni_plan::domain::l1::l2::term::hours::background::goal::learningStyle::depth` — each depth is a separate cache entry.
 
 **Per-resource prereq button:** Each `### ` heading in `renderMarkdown` renders a `↳ prereqs` button. Clicking fetches `/api/bookprereqs` for that title, streams the result inline beneath the heading, and caches it in `bookPrereqs` state (Record<string, string>). `expandedBooks` (Set<string>) tracks which are open. Toggle = click again to collapse.
 
@@ -220,6 +256,8 @@ const part4 = await streamPart(4, titles3, ...);
 - CORE → red (`bg-red-900/60 text-red-300`)
 - ESSENTIAL → blue (`bg-blue-900/60 text-blue-300`)
 - OPTIONAL → gray (`bg-gray-800 text-gray-400`)
+
+**filterPlanText:** Hides OPTIONAL resource descriptions unless "All works" filter is selected. CRITICAL: `#### ` lines (milestones, debates) must reset `skip = false` — do not remove this or milestones will be hidden.
 
 ---
 
@@ -229,7 +267,9 @@ const part4 = await streamPart(4, titles3, ...);
 - **L2 vs L3 granularity:** prompts in `/api/generate` have explicit correct/wrong examples. Keep them — Claude defaults to round numbers and wrong granularity without them.
 - **Talpa Books URL:** uses `+` for spaces, not `%20`.
 - **Wikipedia cache backward compat:** old entries are plain strings; new format is `JSON.stringify({status, url})`. Parse has a try/catch fallback.
-- **Study plan cache:** old plans generated before the 4-part split or before TAG format was added won't have tags or all levels. Users must clear `omni_plan::` keys from localStorage to regenerate.
+- **Study plan cache:** old plans generated before the 6-part Mastery Map rebuild won't have the track system, depth, or new sections. Users must clear `omni_plan::` keys from localStorage to regenerate.
+- **Reading chain parser:** `parseChain()` splits on `\n---\n` and extracts `### Title — Author (Year)` + optional `· Language` on same line + `**Requires:**`/`**Contributes:**`/`**Enables:**` fields. The language can also appear as a standalone `· Language` line — parser handles both positions.
+- **Decoder placement extraction:** `extractPlacement()` regex matches `**Field:** Domain → L1 → L2` with `[→›>/]` as separator. Returns `{ term, domain, l1, l2? }` — `term` is the last segment of the field path.
 
 ---
 
@@ -259,6 +299,9 @@ const part4 = await streamPart(4, titles3, ...);
 ### Supporting Features
 15. **Themes & Genealogy** (ThematicModal) — surface 40+ themes in any field; trace thinker genealogy
 16. **Great Questions** (GreatQuestionsModal) — deep dive into the great questions of any field
+17. **⊙ The Horizon** (WoundModal) — structural limit of any field: Central Aporia + Load-Bearing Metaphor + Works from any era/language. Button on every L2/L3 card. Cache: `omni_wound::`.
+18. **⬡ The Decoder** (DecoderModal) — paste any paper/book title + optional abstract → 6-section analysis: placement, prereqs, context, what it opened, readiness check. "View Reading Chain →" button auto-places paper in chain. Cache: `omni_decoder::`.
+19. **⬦ Reading Chain** (ReadingChainModal) — linear reading spine from first contact to mastery, no length cap. "Place a paper" input to find where any work fits (amber-highlighted card). Auto-placement if opened from Decoder. Cache: `omni_chain::`. Button on every L2/L3 card.
 
 ---
 
