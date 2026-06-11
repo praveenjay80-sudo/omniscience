@@ -12,7 +12,7 @@ interface WoundModalProps {
 }
 
 type Section = "none" | "aporia" | "metaphor" | "works";
-const ROMAN = ["I", "II", "III", "IV"];
+const ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV"];
 
 function renderWound(text: string, loading: boolean): React.ReactNode[] {
   const lines = text.split("\n");
@@ -147,11 +147,12 @@ export default function WoundModal({ term, domain, l1, l2, apiKey, onClose }: Wo
         <div className="flex items-start justify-between px-6 py-4 border-b border-rose-900/20">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-rose-800/70 text-xs">◈</span>
-              <span className="text-[10px] text-rose-800/70 uppercase tracking-[0.2em] font-medium">The Wound</span>
+              <span className="text-rose-500/80 text-sm">⊙</span>
+              <span className="text-[10px] text-rose-500/70 uppercase tracking-[0.2em] font-semibold">The Horizon</span>
+              <span className="text-[9px] text-rose-900/60 border border-rose-900/40 rounded px-1.5 py-0.5">structural limit</span>
             </div>
             <h2 className="text-white font-semibold text-lg">{term}</h2>
-            <p className="text-[11px] text-gray-700 mt-0.5">{breadcrumb}</p>
+            <p className="text-[11px] text-gray-600 mt-0.5">{breadcrumb}</p>
           </div>
           <button onClick={onClose} className="text-gray-600 hover:text-gray-300 text-xl leading-none ml-4 mt-0.5 transition-colors">✕</button>
         </div>

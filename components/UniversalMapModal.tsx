@@ -526,7 +526,7 @@ export default function UniversalMapModal({ apiKey, onClose }: UniversalMapModal
     { id: "canon",    label: "The Canon",            icon: "≡", badge: "all of knowledge" },
     { id: "minimum",  label: "Theoretical Minimum",  icon: "∴" },
     { id: "questions",label: "Grand Questions",      icon: "?" },
-    { id: "wound",    label: "The Wound",            icon: "◈" },
+    { id: "wound",    label: "The Horizon",           icon: "⊙" },
   ];
 
   const tabAccent: Record<Tab, string> = {
@@ -646,7 +646,7 @@ export default function UniversalMapModal({ apiKey, onClose }: UniversalMapModal
           {activeTab === "canon" && <p className="text-gray-600 text-xs">The most influential works for any sub-field — pick a domain, field, and sub-field, then get the definitive reading list from introductory to research level. Track what you've read.</p>}
           {activeTab === "minimum" && <p className="text-gray-600 text-xs">Inspired by Landau's legendary exam — the irreducible sequence of concepts, in strict dependency order, that builds the mental infrastructure to understand anything.</p>}
           {activeTab === "questions" && <p className="text-gray-600 text-xs">The deepest questions that span all of human inquiry — that no single discipline can answer, that humanity has been asking for centuries and still cannot resolve.</p>}
-          {activeTab === "wound" && <p className="text-gray-600 text-xs">Seven irreducible paradoxes where every field eventually reaches its own boundary — structural limits that cannot be dissolved by better methods, only acknowledged. The meta-pattern that gives human understanding its shape.</p>}
+          {activeTab === "wound" && <p className="text-gray-600 text-xs">Seven irreducible paradoxes where every field reaches the edge of its own methods — always visible, never crossable. The limits that cannot be dissolved by more research, only acknowledged. The meta-pattern that gives all human understanding its shape.</p>}
         </div>
 
         {/* Body */}

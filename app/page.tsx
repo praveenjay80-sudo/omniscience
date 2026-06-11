@@ -427,9 +427,20 @@ export default function Home() {
                 <span className="text-[11px] text-indigo-400/70 uppercase tracking-widest font-medium">Prime Feature</span>
               </div>
               <h2 className="text-2xl font-bold text-white mb-2 group-hover:text-indigo-200 transition-colors">The Map</h2>
-              <p className="text-gray-300 text-sm leading-relaxed mb-5 max-w-2xl">
+              <p className="text-gray-300 text-sm leading-relaxed mb-4 max-w-2xl">
                 The complete architecture of human knowledge — every intellectual root, canonical work, and grand question mapped across all fields and all time.
               </p>
+
+              {/* The Horizon explainer */}
+              <div className="mb-5 max-w-2xl rounded-xl border border-rose-900/30 bg-rose-950/10 px-4 py-3">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <span className="text-rose-500/70 text-sm">⊙</span>
+                  <p className="text-rose-300/80 text-xs font-semibold tracking-wide">New — The Horizon</p>
+                </div>
+                <p className="text-gray-500 text-[11px] leading-relaxed">
+                  Every field of knowledge has a question it cannot answer using its own methods — not because we haven't tried hard enough, but because the tools of the field are constitutively unable to reach it. This is its <span className="text-rose-300/60">horizon</span>: always visible, never crossable. On any topic card below, click <span className="text-rose-400/70 font-medium">⊙ The Horizon</span> to see the structural aporia, the hidden metaphor shaping everything the field sees and misses, and every work that honestly confronts the edge.
+                </p>
+              </div>
 
               {/* Feature callouts */}
               <div className="grid grid-cols-2 gap-3 mb-5 max-w-2xl">
@@ -498,13 +509,13 @@ export default function Home() {
                 </p>
               </div>
 
-              <div className="rounded-xl border border-rose-900/30 bg-rose-950/10 p-4">
+              <div className="rounded-xl border border-rose-800/40 bg-rose-950/15 p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <span className="text-rose-700/70 text-base">◈</span>
-                  <p className="text-rose-200/70 text-sm font-semibold">The Wound</p>
+                  <span className="text-rose-500/80 text-base">⊙</span>
+                  <p className="text-rose-200/80 text-sm font-semibold">The Horizon</p>
                 </div>
                 <p className="text-gray-500 text-xs leading-relaxed">
-                  The structural aporia at the heart of any field — the question it cannot answer with its own methods, its load-bearing metaphor, and the three works that confront the limit honestly.
+                  Every field has a question it cannot answer using its own methods — always visible, never reachable. The structural limit, the hidden metaphor shaping everything, and every work that honestly confronts the edge.
                 </p>
               </div>
             </div>
@@ -608,8 +619,8 @@ export default function Home() {
                         Discover
                       </button>
                       <button onClick={() => setWoundTarget({ term: l2 })}
-                        className="text-xs bg-gray-800 hover:bg-rose-950/60 hover:text-rose-300 text-gray-500 px-2.5 py-1 rounded-lg transition-colors border border-gray-700 hover:border-rose-900/60">
-                        ◈ The Wound
+                        className="text-xs bg-rose-950/25 hover:bg-rose-950/50 text-rose-400/70 hover:text-rose-300 px-2.5 py-1 rounded-lg transition-colors border border-rose-900/40 hover:border-rose-700/60 font-medium">
+                        ⊙ The Horizon
                       </button>
                     </div>
                   </div>
@@ -679,8 +690,8 @@ export default function Home() {
                         Discover
                       </button>
                       <button onClick={() => setWoundTarget({ term: l3, l2: selectedL2 })}
-                        className="text-xs bg-gray-800 hover:bg-rose-950/60 hover:text-rose-300 text-gray-500 px-2.5 py-1 rounded-lg transition-colors border border-gray-700 hover:border-rose-900/60">
-                        ◈ The Wound
+                        className="text-xs bg-rose-950/25 hover:bg-rose-950/50 text-rose-400/70 hover:text-rose-300 px-2.5 py-1 rounded-lg transition-colors border border-rose-900/40 hover:border-rose-700/60 font-medium">
+                        ⊙ The Horizon
                       </button>
                     </div>
                   </div>

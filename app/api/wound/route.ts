@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   let prompt: string;
 
   if (mode === "universal") {
-    prompt = `Write a philosophical meditation on the structural limits of all human knowledge — the places where every field eventually reaches its own boundary.
+    prompt = `Write a philosophical meditation on the structural limits of all human knowledge, written for an intelligent person with no specialist background. These are the places where every field eventually reaches its own boundary — not because we haven't thought hard enough, but because the tools of inquiry hit the edge of what they can reach.
 
 Use this structure with these exact headers:
 
@@ -26,21 +26,21 @@ Use this structure with these exact headers:
 
 For each wound use this exact format:
 ### [Name of the wound]
-One paragraph (130–160 words). What this paradox is at its deepest level. Where it appears across different fields — name specific theorems, specific scientists, specific historical moments, at least three concrete examples from different domains. Why it cannot be dissolved by better methods or more data. It can only be acknowledged.
+Two paragraphs (180–220 words). First paragraph: open with a vivid everyday analogy or story — something from ordinary experience — that makes this paradox intuitively graspable before any technical language. Then show where this same structure appears across at least three different fields, naming specific theorems, specific scientists, specific historical moments (e.g. "Gödel proved in 1931 that...", "When Heisenberg showed that..."). Second paragraph: explain why this wound cannot be dissolved by better methods or more data — what would it even mean to "solve" it, and why that solution is unavailable in principle. End with one sentence about what it costs a field to keep working despite this wound.
 
-The seven should be the deepest structural limits — self-reference and incompleteness, the observer problem, the is-ought gap, emergence vs. reduction, the problem of induction, the hard problem of consciousness, and the measurement problem are candidates. But find the seven that are genuinely the most irreducible, not merely the most difficult.
+The seven should be the deepest structural limits: self-reference and incompleteness, the observer problem, the is-ought gap, emergence vs. reduction, the problem of induction, the hard problem of consciousness, and the measurement problem are strong candidates. Choose the seven that are genuinely most irreducible.
 
 ## THE COMMON STRUCTURE
 
-One paragraph (160–200 words). What all seven share — the meta-pattern that gives human understanding this particular shape. Why does knowledge always find this specific edge? End with one sentence that speaks to what it means to be the kind of beings whose knowledge has these limits.
+Two paragraphs (200–240 words). First paragraph: explain in plain language what all seven share — the meta-pattern that gives human understanding this particular shape. Use an analogy a non-specialist can follow. Second paragraph: reflect on what it means to be the kind of beings whose knowledge has these limits — not as a defeat, but as a feature of what it is to be finite minds reaching toward infinite complexity. End with a single sentence that a reader will remember.
 
-Prose only. No bullet lists. No hedging. This is the deepest layer of the app — the place where browsing stops and thinking begins.`;
+Prose only. No bullet lists. Write with the care of someone who finds this genuinely beautiful.`;
   } else {
     if (!term) return new Response("term is required for field mode", { status: 400 });
     const fieldPath = l2 ? `${l1} → ${l2}` : l1;
     const context = domain ? `${domain} / ${fieldPath}` : fieldPath;
 
-    prompt = `You are writing a philosophical meditation on the structural limits of a field of human knowledge.
+    prompt = `You are writing a philosophical meditation on the structural limits of a field of human knowledge, aimed at a complete beginner who has never studied this field.
 
 Field context: ${context}
 Specific topic: ${term}
@@ -49,21 +49,25 @@ Write in exactly three sections using these headers verbatim:
 
 ## THE CENTRAL APORIA
 
-One paragraph (180–220 words). The question this field cannot answer using its own methods — not an open research problem but a structural wound. The paradox that motivated the field into existence and that it circles forever without resolution. Begin with the wound itself. Be precise, unflinching, exact. No hedging.
+Two paragraphs (250–300 words total). Explain the wound the way you would to a curious, intelligent person who has never studied this field at all.
+
+First paragraph: Start with a concrete everyday analogy or story that makes the paradox viscerally understandable — something from ordinary life, not from the field itself. Then show how ${term} runs into exactly this same structure. Use plain language throughout.
+
+Second paragraph: Now deepen it. Show why this is not just a hard unsolved problem but a structural limit — something the field's own methods are constitutively unable to reach. Give a specific real example from the history of the field where this wound actually surfaced and caused a crisis or a fundamental rethinking. Be precise and honest.
 
 ## THE LOAD-BEARING METAPHOR
 
-One paragraph (120–160 words). Every field thinks with a root metaphor it rarely examines. Name this field's organizing metaphor. Show what it reveals about reality. Show what it necessarily hides or distorts. Show how the field's characteristic blind spots follow inevitably from this metaphor.
+One paragraph (160–200 words). Every field thinks with a root metaphor it rarely examines. Name this field's organizing metaphor clearly. Give a concrete example of a question this metaphor makes easy and natural to ask. Then give a concrete example of a question this metaphor makes impossible to even formulate — something a person outside the field would naturally ask, but that the field's vocabulary has no room for. Show how the field's characteristic blind spots follow directly from this metaphor. Write for someone who has never thought about how metaphors shape inquiry.
 
-## THE THREE WORKS
+## THE WORKS
 
-Exactly three works — not the canonical introductions, not the most-cited papers, but the three that most honestly confront the field's central wound. The works where the field looks at its own limits and reports back.
+List every significant work — books, papers, essays — that makes genuine progress toward confronting or understanding this wound. Include the full spectrum: accessible popular works that introduce the limit to non-specialists, philosophical explorations, landmark technical papers, historical accounts of how the wound was discovered, and the most rigorous honest confrontations. Do not cap the number — include all works that genuinely matter here, typically 8–15.
 
-For each, use this exact format:
+For each work use this exact format:
 ### [Exact Title] — [Author(s)] ([Year])
-One paragraph (100–130 words). Not what the work achieves or teaches. Why it belongs in the canon of honest reckoning — what wound does it face, what does it dare to say about the limits of this field that more comfortable works look away from.
+Two paragraphs (150–180 words). First paragraph: what does this work actually say, in plain language — explain the core argument as if to someone who will never read it, with at least one concrete example of what it claims or demonstrates. Second paragraph: how does it relate to the wound — how close does it get, what does it honestly confront, what does it still leave unresolved, and why does it belong in this list rather than the ordinary canon.
 
-Prose only. No bullet lists. Write as if you have thought about nothing else for twenty years.`;
+Prose only in body paragraphs. No bullet lists. Write with genuine intellectual care — these explanations should make a beginner feel they have grasped something real.`;
   }
 
   const encoder = new TextEncoder();
