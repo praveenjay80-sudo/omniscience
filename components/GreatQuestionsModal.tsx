@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { TAXONOMY_SEED } from "@/lib/taxonomy-seed";
+import { getL2Options } from "@/lib/taxonomy-l2";
 
 interface GreatQuestionsModalProps {
   apiKey: string;
@@ -9,6 +10,7 @@ interface GreatQuestionsModalProps {
 }
 
 type View = "picker" | "questions" | "treatment";
+type ModelId = "claude-sonnet-4-6" | "claude-haiku-4-5-20251001";
 interface QuestionItem { name: string; description: string; }
 
 function parseNDJSON(raw: string): QuestionItem[] {
@@ -72,10 +74,29 @@ function renderMarkdown(text: string) {
   });
 }
 
+function ModelToggle({ model, setModel }: { model: ModelId; setModel: (m: ModelId) => void }) {
+  return (
+    <div className="flex rounded overflow-hidden border border-gray-700 text-[10px]">
+      <button
+        onClick={() => setModel("claude-sonnet-4-6")}
+        className={`px-2 py-1 transition-colors ${model === "claude-sonnet-4-6" ? "bg-gray-600 text-gray-100" : "bg-gray-800 text-gray-500 hover:text-gray-300"}`}
+      >Sonnet</button>
+      <button
+        onClick={() => setModel("claude-haiku-4-5-20251001")}
+        className={`px-2 py-1 transition-colors ${model === "claude-haiku-4-5-20251001" ? "bg-gray-600 text-gray-100" : "bg-gray-800 text-gray-500 hover:text-gray-300"}`}
+      >Haiku</button>
+    </div>
+  );
+}
+
 export default function GreatQuestionsModal({ apiKey, onClose }: GreatQuestionsModalProps) {
   const [view, setView] = useState<View>("picker");
+  const [model, setModel] = useState<ModelId>("claude-sonnet-4-6");
+  const abortRef = useRef<AbortController | null>(null);
+
   const [selectedDomain, setSelectedDomain] = useState("");
   const [selectedL1, setSelectedL1] = useState("");
+  const [selectedL2, setSelectedL2] = useState("");
 
   const [questions, setQuestions] = useState<QuestionItem[]>([]);
   const [listLoading, setListLoading] = useState(false);
@@ -88,7 +109,16 @@ export default function GreatQuestionsModal({ apiKey, onClose }: GreatQuestionsM
 
   const domainEntry = TAXONOMY_SEED.find((s) => s.domain === selectedDomain);
   const l1List = domainEntry?.l1 ?? [];
-  const listCacheKey = selectedDomain && selectedL1 ? `omni_gq_list::${selectedDomain}::${selectedL1}` : null;
+  const l2Options = useMemo(() => getL2Options(selectedDomain, selectedL1), [selectedDomain, selectedL1]);
+  const fieldLabel = selectedL2 || selectedL1;
+  const listCacheKey = selectedDomain && selectedL1 ? `omni_gq_list::${selectedDomain}::${fieldLabel}` : null;
+
+  const isAnyLoading = listLoading || treatmentLoading;
+
+  function stopGeneration() {
+    abortRef.current?.abort();
+    abortRef.current = null;
+  }
 
   async function generateList() {
     if (!selectedL1 || !apiKey) return;
@@ -101,6 +131,8 @@ export default function GreatQuestionsModal({ apiKey, onClose }: GreatQuestionsM
         } catch {}
       }
     }
+    const controller = new AbortController();
+    abortRef.current = controller;
     setListLoading(true);
     setQuestions([]);
     setListError(null);
@@ -109,7 +141,8 @@ export default function GreatQuestionsModal({ apiKey, onClose }: GreatQuestionsM
       const res = await fetch("/api/greatquestions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey, domain: selectedDomain, l1: selectedL1 }),
+        body: JSON.stringify({ apiKey, domain: selectedDomain, l1: selectedL1, l2: selectedL2 || undefined, model }),
+        signal: controller.signal,
       });
       if (!res.ok || !res.body) throw new Error(`Server error ${res.status}`);
       const reader = res.body.getReader();
@@ -126,6 +159,7 @@ export default function GreatQuestionsModal({ apiKey, onClose }: GreatQuestionsM
       setQuestions(final);
       if (listCacheKey && final.length > 0) localStorage.setItem(listCacheKey, JSON.stringify(final));
     } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
       setListError(err instanceof Error ? err.message : "Failed");
     } finally {
       setListLoading(false);
@@ -138,6 +172,8 @@ export default function GreatQuestionsModal({ apiKey, onClose }: GreatQuestionsM
     const cacheKey = `omni_gq::${q.name.toLowerCase().slice(0, 80)}`;
     const cached = localStorage.getItem(cacheKey);
     if (cached) { setTreatment(cached); return; }
+    const controller = new AbortController();
+    abortRef.current = controller;
     setTreatmentLoading(true);
     setTreatment("");
     setTreatmentError(null);
@@ -145,7 +181,8 @@ export default function GreatQuestionsModal({ apiKey, onClose }: GreatQuestionsM
       const res = await fetch("/api/greatquestion", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey, question: q.name, domain: selectedDomain, l1: selectedL1 }),
+        body: JSON.stringify({ apiKey, question: q.name, domain: selectedDomain, l1: selectedL1, model }),
+        signal: controller.signal,
       });
       if (!res.ok || !res.body) throw new Error(`Server error ${res.status}`);
       const reader = res.body.getReader();
@@ -160,6 +197,7 @@ export default function GreatQuestionsModal({ apiKey, onClose }: GreatQuestionsM
       }
       localStorage.setItem(cacheKey, text);
     } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
       setTreatmentError(err instanceof Error ? err.message : "Failed");
     } finally {
       setTreatmentLoading(false);
@@ -173,7 +211,7 @@ export default function GreatQuestionsModal({ apiKey, onClose }: GreatQuestionsM
     : "Deep Dive";
   const headerTitle = view === "picker" ? "The questions a field can't stop asking"
     : view === "questions"
-    ? (questions.length > 0 ? `${questions.length} deep questions` : `Finding questions in ${selectedL1}…`)
+    ? (questions.length > 0 ? `${questions.length} deep questions` : `Finding questions in ${fieldLabel}…`)
     : activeQuestion?.name ?? "";
 
   return (
@@ -187,6 +225,7 @@ export default function GreatQuestionsModal({ apiKey, onClose }: GreatQuestionsM
               <>
                 <button
                   onClick={() => {
+                    stopGeneration();
                     if (view === "treatment") { setView("questions"); setActiveQuestion(null); setTreatment(""); }
                     else { setView("picker"); setQuestions([]); }
                   }}
@@ -202,7 +241,16 @@ export default function GreatQuestionsModal({ apiKey, onClose }: GreatQuestionsM
               <h2 className="text-white font-semibold text-base truncate">{headerTitle}</h2>
             </div>
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-white text-lg leading-none mt-1 flex-shrink-0 ml-3">✕</button>
+          <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+            {isAnyLoading && (
+              <button onClick={stopGeneration}
+                className="flex items-center gap-1 text-[11px] px-2 py-1 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors">
+                <span className="text-[9px]">■</span> Stop
+              </button>
+            )}
+            <ModelToggle model={model} setModel={setModel} />
+            <button onClick={onClose} className="text-gray-500 hover:text-white text-lg leading-none">✕</button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4">
@@ -212,31 +260,41 @@ export default function GreatQuestionsModal({ apiKey, onClose }: GreatQuestionsM
               <p className="text-gray-500 text-xs leading-relaxed">
                 Pick a field — Claude surfaces the fundamental questions that resist easy answers, that the best minds carry for their entire careers. Click any question to see every angle explored.
               </p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-2">
                 <div>
                   <label className="block text-[11px] text-gray-500 mb-1.5 uppercase tracking-wide">Domain</label>
                   <select value={selectedDomain}
-                    onChange={(e) => { setSelectedDomain(e.target.value); setSelectedL1(""); }}
+                    onChange={(e) => { setSelectedDomain(e.target.value); setSelectedL1(""); setSelectedL2(""); }}
                     className={selectClass}>
-                    <option value="">Select domain…</option>
+                    <option value="">Select…</option>
                     {TAXONOMY_SEED.map((s) => <option key={s.domain} value={s.domain}>{s.domain}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-[11px] text-gray-500 mb-1.5 uppercase tracking-wide">Field</label>
                   <select value={selectedL1}
-                    onChange={(e) => setSelectedL1(e.target.value)}
+                    onChange={(e) => { setSelectedL1(e.target.value); setSelectedL2(""); }}
                     disabled={!selectedDomain}
                     className={`${selectClass} disabled:opacity-40`}>
-                    <option value="">Select field…</option>
+                    <option value="">Select…</option>
                     {l1List.map((l1) => <option key={l1} value={l1}>{l1}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] text-gray-500 mb-1.5 uppercase tracking-wide">Subfield</label>
+                  <select value={selectedL2}
+                    onChange={(e) => setSelectedL2(e.target.value)}
+                    disabled={!selectedL1 || l2Options.length === 0}
+                    className={`${selectClass} disabled:opacity-40`}>
+                    <option value="">All of {selectedL1 || "field"}</option>
+                    {l2Options.map((l2) => <option key={l2} value={l2}>{l2}</option>)}
                   </select>
                 </div>
               </div>
               {listError && <p className="text-red-400 text-xs">{listError}</p>}
               <button onClick={generateList} disabled={!selectedL1 || !apiKey}
                 className="w-full bg-emerald-800 hover:bg-emerald-700 disabled:opacity-40 text-white text-sm py-2.5 rounded-lg transition-colors font-medium">
-                {!apiKey ? "Enter API key first" : selectedL1 ? `Find deep questions in ${selectedL1} →` : "Pick a domain and field above"}
+                {!apiKey ? "Enter API key first" : selectedL1 ? `Find deep questions in ${fieldLabel} →` : "Pick a domain and field above"}
               </button>
             </div>
           )}
@@ -246,7 +304,7 @@ export default function GreatQuestionsModal({ apiKey, onClose }: GreatQuestionsM
               {listLoading && questions.length === 0 && (
                 <div className="flex items-center gap-2 text-gray-400 text-sm py-4">
                   <span className="w-4 h-4 border border-gray-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
-                  Surfacing the fundamental questions of {selectedL1}…
+                  Surfacing the fundamental questions of {fieldLabel}…
                 </div>
               )}
               {questions.length > 0 && (

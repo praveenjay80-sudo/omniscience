@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { TAXONOMY_SEED } from "@/lib/taxonomy-seed";
+import { getL2Options } from "@/lib/taxonomy-l2";
 
 interface ThematicModalProps {
   apiKey: string;
@@ -10,6 +11,7 @@ interface ThematicModalProps {
 
 type Mode = "themes" | "genealogy";
 type View = "picker" | "themes" | "curriculum" | "genealogy";
+type ModelId = "claude-sonnet-4-6" | "claude-haiku-4-5-20251001";
 
 interface ThemeItem { name: string; description: string; }
 
@@ -49,7 +51,6 @@ function renderMarkdown(text: string, accentClass = "text-violet-400") {
       return <h2 key={i} className="text-sm font-bold text-white mt-7 mb-2 pb-1 border-b border-gray-800">{inline(line.slice(3))}</h2>;
     if (line.startsWith("### ")) {
       const raw = line.slice(4).trim();
-      // Genealogy thinker format: "Name · dates"
       const dotMatch = raw.match(/^(.+)\s·\s(.+)$/);
       const tagMatch = raw.match(/\s·\s(CORE|ESSENTIAL|OPTIONAL)$/);
       if (tagMatch) {
@@ -87,15 +88,31 @@ function renderMarkdown(text: string, accentClass = "text-violet-400") {
   });
 }
 
+function ModelToggle({ model, setModel }: { model: ModelId; setModel: (m: ModelId) => void }) {
+  return (
+    <div className="flex rounded overflow-hidden border border-gray-700 text-[10px]">
+      <button
+        onClick={() => setModel("claude-sonnet-4-6")}
+        className={`px-2 py-1 transition-colors ${model === "claude-sonnet-4-6" ? "bg-gray-600 text-gray-100" : "bg-gray-800 text-gray-500 hover:text-gray-300"}`}
+      >Sonnet</button>
+      <button
+        onClick={() => setModel("claude-haiku-4-5-20251001")}
+        className={`px-2 py-1 transition-colors ${model === "claude-haiku-4-5-20251001" ? "bg-gray-600 text-gray-100" : "bg-gray-800 text-gray-500 hover:text-gray-300"}`}
+      >Haiku</button>
+    </div>
+  );
+}
+
 export default function ThematicModal({ apiKey, onClose }: ThematicModalProps) {
   const [view, setView] = useState<View>("picker");
   const [mode, setMode] = useState<Mode>("themes");
+  const [model, setModel] = useState<ModelId>("claude-sonnet-4-6");
+  const abortRef = useRef<AbortController | null>(null);
 
   // Field selection
   const [selectedDomain, setSelectedDomain] = useState("");
   const [selectedL1, setSelectedL1] = useState("");
   const [selectedL2, setSelectedL2] = useState("");
-  const [l2Options, setL2Options] = useState<string[]>([]);
 
   // Themes state
   const [themes, setThemes] = useState<ThemeItem[]>([]);
@@ -115,17 +132,7 @@ export default function ThematicModal({ apiKey, onClose }: ThematicModalProps) {
   const l1List = domainEntry?.l1 ?? [];
   const fieldLabel = selectedL2 || selectedL1;
 
-  // Load cached L2 list when L1 changes
-  useEffect(() => {
-    if (!selectedDomain || !selectedL1) { setL2Options([]); setSelectedL2(""); return; }
-    const cached = localStorage.getItem(`omni_l2::${selectedDomain}::${selectedL1}`);
-    if (cached) {
-      try { setL2Options(JSON.parse(cached) as string[]); } catch { setL2Options([]); }
-    } else {
-      setL2Options([]);
-    }
-    setSelectedL2("");
-  }, [selectedDomain, selectedL1]);
+  const l2Options = useMemo(() => getL2Options(selectedDomain, selectedL1), [selectedDomain, selectedL1]);
 
   const listCacheKey = selectedDomain && selectedL1
     ? `omni_thematic_list::${selectedDomain}::${selectedL2 || selectedL1}`
@@ -133,6 +140,13 @@ export default function ThematicModal({ apiKey, onClose }: ThematicModalProps) {
   const genealogyCacheKey = selectedDomain && selectedL1
     ? `omni_genealogy::${selectedL2 || selectedL1}`
     : null;
+
+  const isAnyLoading = themesLoading || curriculumLoading || genealogyLoading;
+
+  function stopGeneration() {
+    abortRef.current?.abort();
+    abortRef.current = null;
+  }
 
   // ── Themes ────────────────────────────────────────────────────────────────────
   async function generateThemes() {
@@ -146,6 +160,8 @@ export default function ThematicModal({ apiKey, onClose }: ThematicModalProps) {
         } catch {}
       }
     }
+    const controller = new AbortController();
+    abortRef.current = controller;
     setThemesLoading(true);
     setThemes([]);
     setThemesError(null);
@@ -154,7 +170,8 @@ export default function ThematicModal({ apiKey, onClose }: ThematicModalProps) {
       const res = await fetch("/api/thematic", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey, domain: selectedDomain, l1: selectedL2 || selectedL1 }),
+        body: JSON.stringify({ apiKey, domain: selectedDomain, l1: selectedL2 || selectedL1, model }),
+        signal: controller.signal,
       });
       if (!res.ok || !res.body) throw new Error(`Server error ${res.status}`);
       const reader = res.body.getReader();
@@ -171,6 +188,7 @@ export default function ThematicModal({ apiKey, onClose }: ThematicModalProps) {
       setThemes(final);
       if (listCacheKey && final.length > 0) localStorage.setItem(listCacheKey, JSON.stringify(final));
     } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
       setThemesError(err instanceof Error ? err.message : "Failed");
     } finally {
       setThemesLoading(false);
@@ -183,6 +201,8 @@ export default function ThematicModal({ apiKey, onClose }: ThematicModalProps) {
     const cacheKey = `omni_curriculum::${theme.name.toLowerCase()}`;
     const cached = localStorage.getItem(cacheKey);
     if (cached) { setCurriculum(cached); return; }
+    const controller = new AbortController();
+    abortRef.current = controller;
     setCurriculumLoading(true);
     setCurriculum("");
     setCurriculumError(null);
@@ -190,7 +210,8 @@ export default function ThematicModal({ apiKey, onClose }: ThematicModalProps) {
       const res = await fetch("/api/thematiccurriculum", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ apiKey, theme: theme.name }),
+        body: JSON.stringify({ apiKey, theme: theme.name, model }),
+        signal: controller.signal,
       });
       if (!res.ok || !res.body) throw new Error(`Server error ${res.status}`);
       const reader = res.body.getReader();
@@ -205,6 +226,7 @@ export default function ThematicModal({ apiKey, onClose }: ThematicModalProps) {
       }
       localStorage.setItem(cacheKey, text);
     } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
       setCurriculumError(err instanceof Error ? err.message : "Failed");
     } finally {
       setCurriculumLoading(false);
@@ -218,6 +240,8 @@ export default function ThematicModal({ apiKey, onClose }: ThematicModalProps) {
       const cached = localStorage.getItem(genealogyCacheKey);
       if (cached) { setGenealogy(cached); setView("genealogy"); return; }
     }
+    const controller = new AbortController();
+    abortRef.current = controller;
     setGenealogyLoading(true);
     setGenealogy("");
     setGenealogyError(null);
@@ -232,7 +256,9 @@ export default function ThematicModal({ apiKey, onClose }: ThematicModalProps) {
           domain: selectedDomain,
           l1: selectedL1,
           l2: selectedL2 || undefined,
+          model,
         }),
+        signal: controller.signal,
       });
       if (!res.ok || !res.body) throw new Error(`Server error ${res.status}`);
       const reader = res.body.getReader();
@@ -247,6 +273,7 @@ export default function ThematicModal({ apiKey, onClose }: ThematicModalProps) {
       }
       if (genealogyCacheKey) localStorage.setItem(genealogyCacheKey, text);
     } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
       setGenealogyError(err instanceof Error ? err.message : "Failed");
     } finally {
       setGenealogyLoading(false);
@@ -306,6 +333,7 @@ export default function ThematicModal({ apiKey, onClose }: ThematicModalProps) {
                 <BackButton
                   label={view === "curriculum" ? "Themes" : view === "genealogy" ? "Picker" : "Picker"}
                   onClick={() => {
+                    stopGeneration();
                     if (view === "curriculum") { setView("themes"); setActiveTheme(null); setCurriculum(""); }
                     else { setView("picker"); setGenealogy(""); setThemes([]); setGenealogyError(null); setThemesError(null); }
                   }}
@@ -318,7 +346,16 @@ export default function ThematicModal({ apiKey, onClose }: ThematicModalProps) {
               <h2 className="text-white font-semibold text-base truncate">{headerTitle}</h2>
             </div>
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-white text-lg leading-none mt-1 flex-shrink-0 ml-3">✕</button>
+          <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+            {isAnyLoading && (
+              <button onClick={stopGeneration}
+                className="flex items-center gap-1 text-[11px] px-2 py-1 rounded bg-gray-700 hover:bg-gray-600 text-gray-300 transition-colors">
+                <span className="text-[9px]">■</span> Stop
+              </button>
+            )}
+            <ModelToggle model={model} setModel={setModel} />
+            <button onClick={onClose} className="text-gray-500 hover:text-white text-lg leading-none">✕</button>
+          </div>
         </div>
 
         {/* Body */}
@@ -353,12 +390,7 @@ export default function ThematicModal({ apiKey, onClose }: ThematicModalProps) {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[11px] text-gray-500 mb-1.5 uppercase tracking-wide">
-                    Subfield
-                    {selectedL1 && l2Options.length === 0 && (
-                      <span className="text-gray-700 ml-1 normal-case">(browse field first)</span>
-                    )}
-                  </label>
+                  <label className="block text-[11px] text-gray-500 mb-1.5 uppercase tracking-wide">Subfield</label>
                   <select value={selectedL2}
                     onChange={(e) => setSelectedL2(e.target.value)}
                     disabled={!selectedL1 || l2Options.length === 0}

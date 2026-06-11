@@ -12,6 +12,8 @@ import ThematicModal from "@/components/ThematicModal";
 import GreatQuestionsModal from "@/components/GreatQuestionsModal";
 import UniversalMapModal from "@/components/UniversalMapModal";
 import WoundModal from "@/components/WoundModal";
+import DecoderModal from "@/components/DecoderModal";
+import ReadingChainModal from "@/components/ReadingChainModal";
 
 type Phase = "pick-domain" | "pick-l1" | "pick-l2" | "view-l3";
 
@@ -19,6 +21,7 @@ interface ExplainTarget { term: string; l2?: string; }
 interface LearningPathTarget { term: string; l2?: string; }
 interface DiscoverTarget { term: string; l2?: string; }
 interface WoundTarget { term: string; l2?: string; }
+interface ChainTarget { term: string; domain: string; l1: string; l2?: string; insertTitle?: string; }
 
 function cacheKey(domain: string, l1: string, l2?: string) {
   return l2 ? `omni_l3::${domain}::${l1}::${l2}` : `omni_l2::${domain}::${l1}`;
@@ -84,6 +87,8 @@ export default function Home() {
   const [learningPathTarget, setLearningPathTarget] = useState<LearningPathTarget | null>(null);
   const [discoverTarget, setDiscoverTarget] = useState<DiscoverTarget | null>(null);
   const [woundTarget, setWoundTarget] = useState<WoundTarget | null>(null);
+  const [showDecoder, setShowDecoder] = useState(false);
+  const [chainTarget, setChainTarget] = useState<ChainTarget | null>(null);
   const [showThematic, setShowThematic] = useState(false);
   const [showGreatQuestions, setShowGreatQuestions] = useState(false);
   const [showUniversalMap, setShowUniversalMap] = useState(false);
@@ -371,7 +376,9 @@ export default function Home() {
                   k.startsWith("omni_prereq::") ||
                   k.startsWith("omni_plan::") ||
                   k.startsWith("omni_discover::") ||
-                  k.startsWith("omni_wound::")
+                  k.startsWith("omni_wound::") ||
+                  k.startsWith("omni_decoder::") ||
+                  k.startsWith("omni_chain::")
               );
               keys.forEach((k) => localStorage.removeItem(k));
               setDifficultyMap({});
@@ -522,7 +529,7 @@ export default function Home() {
             </div>
 
             {/* ── Secondary features ── */}
-            <div className="grid grid-cols-3 gap-3 mb-8">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
               <div
                 className="rounded-xl border border-violet-800/40 bg-violet-950/30 hover:bg-violet-950/50 p-4 cursor-pointer transition-colors group"
                 onClick={() => setShowThematic(true)}
@@ -532,7 +539,7 @@ export default function Home() {
                   <p className="text-violet-200 text-sm font-semibold">Themes &amp; Genealogy</p>
                 </div>
                 <p className="text-gray-500 text-xs leading-relaxed">
-                  Surface 40+ deep intellectual themes in any field and trace each across all knowledge, or trace the unbroken chain of thinkers that built the field — generation by generation.
+                  Surface 40+ deep intellectual themes in any field and trace each across all knowledge, or trace the unbroken chain of thinkers that built the field.
                 </p>
               </div>
 
@@ -545,7 +552,7 @@ export default function Home() {
                   <p className="text-emerald-200 text-sm font-semibold">The Great Questions</p>
                 </div>
                 <p className="text-gray-500 text-xs leading-relaxed">
-                  The fundamental questions a field can't stop asking — the ones the best minds carry for entire careers. Click any question to see every angle, every attempt, and why it stays open.
+                  The fundamental questions a field can't stop asking — every angle, every attempt, and why they stay open.
                 </p>
               </div>
 
@@ -555,7 +562,20 @@ export default function Home() {
                   <p className="text-rose-200/80 text-sm font-semibold">The Horizon</p>
                 </div>
                 <p className="text-gray-500 text-xs leading-relaxed">
-                  Every field has a question it cannot answer using its own methods — always visible, never reachable. The structural aporia, the hidden load-bearing metaphor, and every work that honestly confronts the edge.
+                  Every field has a question it cannot answer using its own methods — always visible, never reachable. The structural limit, the hidden metaphor, every honest confrontation with the edge.
+                </p>
+              </div>
+
+              <div
+                className="rounded-xl border border-cyan-800/40 bg-cyan-950/20 hover:bg-cyan-950/40 p-4 cursor-pointer transition-colors group"
+                onClick={() => setShowDecoder(true)}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-cyan-400/80 text-base">⬡</span>
+                  <p className="text-cyan-200/90 text-sm font-semibold">The Decoder</p>
+                </div>
+                <p className="text-gray-500 text-xs leading-relaxed">
+                  Paste any paper or book title — get its curriculum placement, prerequisites, intellectual context, and reading chain position.
                 </p>
               </div>
             </div>
@@ -662,6 +682,10 @@ export default function Home() {
                         className="text-xs bg-rose-950/25 hover:bg-rose-950/50 text-rose-400/70 hover:text-rose-300 px-2.5 py-1 rounded-lg transition-colors border border-rose-900/40 hover:border-rose-700/60 font-medium">
                         ⊙ The Horizon
                       </button>
+                      <button onClick={() => setChainTarget({ term: l2, domain: selectedDomain, l1: selectedL1 })}
+                        className="text-xs bg-indigo-950/30 hover:bg-indigo-900/50 text-indigo-400/70 hover:text-indigo-300 px-2.5 py-1 rounded-lg transition-colors border border-indigo-900/40 hover:border-indigo-700/60">
+                        ⬦ Chain
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -733,6 +757,10 @@ export default function Home() {
                         className="text-xs bg-rose-950/25 hover:bg-rose-950/50 text-rose-400/70 hover:text-rose-300 px-2.5 py-1 rounded-lg transition-colors border border-rose-900/40 hover:border-rose-700/60 font-medium">
                         ⊙ The Horizon
                       </button>
+                      <button onClick={() => setChainTarget({ term: l3, domain: selectedDomain, l1: selectedL1, l2: selectedL2 })}
+                        className="text-xs bg-indigo-950/30 hover:bg-indigo-900/50 text-indigo-400/70 hover:text-indigo-300 px-2.5 py-1 rounded-lg transition-colors border border-indigo-900/40 hover:border-indigo-700/60">
+                        ⬦ Chain
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -792,6 +820,27 @@ export default function Home() {
           l2={woundTarget.l2}
           apiKey={apiKey}
           onClose={() => setWoundTarget(null)}
+        />
+      )}
+      {showDecoder && (
+        <DecoderModal
+          apiKey={apiKey}
+          onClose={() => setShowDecoder(false)}
+          onViewChain={(target) => {
+            setShowDecoder(false);
+            setChainTarget(target);
+          }}
+        />
+      )}
+      {chainTarget && (
+        <ReadingChainModal
+          term={chainTarget.term}
+          domain={chainTarget.domain}
+          l1={chainTarget.l1}
+          l2={chainTarget.l2}
+          apiKey={apiKey}
+          insertTitle={chainTarget.insertTitle}
+          onClose={() => setChainTarget(null)}
         />
       )}
     </div>

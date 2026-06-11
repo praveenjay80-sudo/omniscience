@@ -2,7 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest } from "next/server";
 
 export async function POST(req: NextRequest) {
-  const { apiKey, domain, l1 } = await req.json();
+  const { apiKey, model: reqModel = "claude-sonnet-4-6", domain, l1 } = await req.json();
   if (!apiKey || !domain || !l1) return new Response("apiKey, domain, and l1 are required", { status: 400 });
 
   const client = new Anthropic({ apiKey });
@@ -13,10 +13,10 @@ These are the deep ideas, recurring patterns, and conceptual frameworks that def
 
 For each theme give:
 - A compelling name (2–6 words, specific enough to search for)
-- One sentence that makes a curious non-specialist lean forward — what makes this idea genuinely exciting?
+- One sentence written for a complete beginner — use a concrete everyday analogy or example to capture what makes this idea genuinely exciting. No jargon.
 
 Return ONLY newline-delimited JSON, one object per line, no array brackets, no markdown, no commentary:
-{"n":"Theme Name","d":"One-sentence description"}
+{"n":"Theme Name","d":"One-sentence beginner-friendly description with an example"}
 
 Be exhaustive. Cover foundational themes, structural themes, dynamical themes, and the surprising/counterintuitive ones. Aim for 40+ entries.`;
 
@@ -26,7 +26,7 @@ Be exhaustive. Cover foundational themes, structural themes, dynamical themes, a
       controller.enqueue(encoder.encode(" "));
       try {
         const s = await client.messages.stream({
-          model: "claude-sonnet-4-6",
+          model: (reqModel === "claude-haiku-4-5-20251001" ? reqModel : "claude-sonnet-4-6") as "claude-sonnet-4-6" | "claude-haiku-4-5-20251001",
           max_tokens: 4096,
           messages: [{ role: "user", content: prompt }],
         });

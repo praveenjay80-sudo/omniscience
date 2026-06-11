@@ -2,14 +2,14 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest } from "next/server";
 
 export async function POST(req: NextRequest) {
-  const { apiKey, theme } = await req.json();
+  const { apiKey, model: reqModel = "claude-sonnet-4-6", theme } = await req.json();
   if (!apiKey || !theme) return new Response("apiKey and theme are required", { status: 400 });
 
   const client = new Anthropic({ apiKey });
 
-  const prompt = `You are the world's most creative academic guide. A student wants to understand the theme "${theme}" as it cuts across all of human knowledge.
+  const prompt = `You are the world's most creative academic guide. A complete beginner wants to understand the theme "${theme}" as it cuts across all of human knowledge.
 
-Write as a brilliantly excited mentor who has spent a lifetime noticing how this idea keeps reappearing in the most unexpected places. Use "you" throughout.
+Write as a brilliantly excited mentor speaking to someone with zero prior knowledge. Use "you" throughout. Assume the reader has never studied this topic. For every concept, immediately give a concrete everyday example — something from daily life, a simple analogy, or a story — before going deeper. Never use jargon without first explaining it in plain English.
 
 ---
 
@@ -61,7 +61,7 @@ One paragraph. The most unified, beautiful statement of what "${theme}" really i
       controller.enqueue(encoder.encode(" "));
       try {
         const s = await client.messages.stream({
-          model: "claude-sonnet-4-6",
+          model: (reqModel === "claude-haiku-4-5-20251001" ? reqModel : "claude-sonnet-4-6") as "claude-sonnet-4-6" | "claude-haiku-4-5-20251001",
           max_tokens: 8192,
           messages: [{ role: "user", content: prompt }],
         });

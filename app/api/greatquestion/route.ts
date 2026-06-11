@@ -2,14 +2,14 @@ import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest } from "next/server";
 
 export async function POST(req: NextRequest) {
-  const { apiKey, question, domain, l1 } = await req.json();
+  const { apiKey, model: reqModel = "claude-sonnet-4-6", question, domain, l1 } = await req.json();
   if (!apiKey || !question) return new Response("apiKey and question are required", { status: 400 });
 
   const client = new Anthropic({ apiKey });
 
-  const prompt = `You are the world's most thoughtful intellectual guide. A student wants to understand this deep question: "${question}" — in the context of ${l1} (${domain}).
+  const prompt = `You are the world's most thoughtful intellectual guide. A complete beginner wants to understand this deep question: "${question}" — in the context of ${l1} (${domain}).
 
-Write as a brilliant, excited mentor using "you" throughout. This is not an encyclopedia entry — it is a conversation with someone who genuinely wants to think.
+Write as a brilliant, excited mentor using "you" throughout. This is not an encyclopedia entry — it is a conversation with someone who genuinely wants to think but has no prior knowledge of the field. For every concept or idea, immediately give a concrete everyday example or analogy before going further. Define every technical term the moment you introduce it. Make the reader feel the weight and excitement of the question without needing any background.
 
 ---
 
@@ -63,7 +63,7 @@ Do not cap the list. Include every work that genuinely advances the question.`;
       controller.enqueue(encoder.encode(" "));
       try {
         const s = await client.messages.stream({
-          model: "claude-sonnet-4-6",
+          model: (reqModel === "claude-haiku-4-5-20251001" ? reqModel : "claude-sonnet-4-6") as "claude-sonnet-4-6" | "claude-haiku-4-5-20251001",
           max_tokens: 8192,
           messages: [{ role: "user", content: prompt }],
         });
