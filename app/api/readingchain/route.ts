@@ -59,7 +59,7 @@ Selection criteria:
 — Include primary sources, textbooks, papers, and essays as appropriate to the actual learning sequence
 — Include works from other fields if they provide the most direct path to understanding
 — Include works in original languages if they are the genuine best step (note the language)
-— Aim for 8–12 works total; include more only if the path genuinely requires it
+— Include every work that is a genuine necessary step; do not cap the list. A deep field may need 20+ entries; a narrow topic may need 6. Let the subject determine the length, not an arbitrary limit.
 
 For each work use this exact format:
 
@@ -82,7 +82,7 @@ Do not number the works. Do not add commentary outside the entry format. The cha
       try {
         const s = await client.messages.stream({
           model: "claude-sonnet-4-6",
-          max_tokens: 4096,
+          max_tokens: 8192,
           messages: [{ role: "user", content: prompt }],
         });
         for await (const chunk of s) {
