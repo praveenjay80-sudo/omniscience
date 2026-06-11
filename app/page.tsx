@@ -528,8 +528,67 @@ export default function Home() {
               <p className="text-gray-600 text-xs">Available on every topic card below — click <span className="text-blue-400/60 font-medium">↗ Study Plan</span> on any field or topic to begin.</p>
             </div>
 
+            {/* ── Decoder + Reading Chain Featured Card ── */}
+            <div className="mb-5 rounded-2xl border border-cyan-800/40 bg-gradient-to-br from-cyan-950/40 via-indigo-950/30 to-gray-950 p-6">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-cyan-400 text-lg">⬡</span>
+                <span className="text-[11px] text-cyan-400/70 uppercase tracking-widest font-medium">Intelligence Tools</span>
+                <span className="text-[9px] bg-cyan-900/40 text-cyan-300 border border-cyan-700/40 rounded px-1.5 py-0.5 font-semibold ml-1">New ✦</span>
+              </div>
+              <h2 className="text-xl font-bold text-white mb-1.5">The Decoder + Reading Chain</h2>
+              <p className="text-gray-400 text-sm leading-relaxed mb-5 max-w-2xl">
+                Found an interesting paper? Paste the title — get its exact place in the curriculum, every prerequisite, the intellectual problem it solved, and what it opened up. Then see the full reading spine for that field, with your paper placed at its exact position.
+              </p>
+
+              {/* Two-panel workflow */}
+              <div className="flex items-stretch gap-0 mb-5 max-w-2xl">
+                <div
+                  className="flex-1 rounded-l-xl border border-cyan-800/40 bg-cyan-950/20 hover:bg-cyan-950/40 px-4 py-3.5 cursor-pointer transition-colors group"
+                  onClick={() => setShowDecoder(true)}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-cyan-400/80 text-sm">⬡</span>
+                    <p className="text-cyan-200 text-xs font-semibold">The Decoder</p>
+                  </div>
+                  <ul className="space-y-1">
+                    {["Curriculum placement (field, level, priority)", "Every prerequisite with one-sentence rationale", "What intellectual gap it filled", "What it made possible after"].map((item) => (
+                      <li key={item} className="text-[11px] text-gray-500 flex items-start gap-1.5">
+                        <span className="text-cyan-800 mt-0.5 flex-shrink-0">—</span>{item}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-cyan-400/50 text-[10px] mt-3 group-hover:text-cyan-400/70 transition-colors font-medium">Decode a Paper →</p>
+                </div>
+
+                <div className="flex items-center px-3 flex-shrink-0">
+                  <div className="flex flex-col items-center gap-1">
+                    <div className="w-px h-6 bg-gradient-to-b from-cyan-900/0 via-cyan-700/40 to-indigo-700/40" />
+                    <span className="text-gray-700 text-xs">→</span>
+                    <div className="w-px h-6 bg-gradient-to-b from-indigo-700/40 via-indigo-700/40 to-indigo-900/0" />
+                  </div>
+                </div>
+
+                <div className="flex-1 rounded-r-xl border border-indigo-800/40 bg-indigo-950/20 px-4 py-3.5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-indigo-400/80 text-sm">⬦</span>
+                    <p className="text-indigo-200 text-xs font-semibold">Reading Chain</p>
+                  </div>
+                  <ul className="space-y-1">
+                    {["Linear spine from first encounter to mastery", "Each work: what it requires, gives, enables", "Works from any era, language, or field", "Place any paper — see exactly where it fits"].map((item) => (
+                      <li key={item} className="text-[11px] text-gray-500 flex items-start gap-1.5">
+                        <span className="text-indigo-800 mt-0.5 flex-shrink-0">—</span>{item}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-gray-700 text-[10px] mt-3">Available on every topic card → <span className="text-indigo-400/60 font-medium">⬦ Chain</span></p>
+                </div>
+              </div>
+
+              <p className="text-gray-700 text-xs">Decode a paper to auto-place it in the chain — the two tools connect. <span className="text-gray-600">The Decoder places your paper; the Chain shows the full journey it fits into.</span></p>
+            </div>
+
             {/* ── Secondary features ── */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+            <div className="grid grid-cols-3 gap-3 mb-8">
               <div
                 className="rounded-xl border border-violet-800/40 bg-violet-950/30 hover:bg-violet-950/50 p-4 cursor-pointer transition-colors group"
                 onClick={() => setShowThematic(true)}
@@ -563,19 +622,6 @@ export default function Home() {
                 </div>
                 <p className="text-gray-500 text-xs leading-relaxed">
                   Every field has a question it cannot answer using its own methods — always visible, never reachable. The structural limit, the hidden metaphor, every honest confrontation with the edge.
-                </p>
-              </div>
-
-              <div
-                className="rounded-xl border border-cyan-800/40 bg-cyan-950/20 hover:bg-cyan-950/40 p-4 cursor-pointer transition-colors group"
-                onClick={() => setShowDecoder(true)}
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-cyan-400/80 text-base">⬡</span>
-                  <p className="text-cyan-200/90 text-sm font-semibold">The Decoder</p>
-                </div>
-                <p className="text-gray-500 text-xs leading-relaxed">
-                  Paste any paper or book title — get its curriculum placement, prerequisites, intellectual context, and reading chain position.
                 </p>
               </div>
             </div>
