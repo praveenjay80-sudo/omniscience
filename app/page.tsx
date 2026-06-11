@@ -471,8 +471,58 @@ export default function Home() {
               </div>
             </div>
 
+            {/* ── Study Plan Featured Card ── */}
+            <div className="mb-5 rounded-2xl border border-blue-700/40 bg-gradient-to-br from-blue-950/50 via-gray-900 to-gray-950 p-6">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-blue-400 text-lg">↗</span>
+                <span className="text-[11px] text-blue-400/70 uppercase tracking-widest font-medium">Study Plan</span>
+                <span className="text-[9px] bg-blue-900/50 text-blue-300 border border-blue-700/50 rounded px-1.5 py-0.5 font-semibold ml-1">Rebuilt ✦</span>
+              </div>
+              <h2 className="text-xl font-bold text-white mb-1.5">The Mastery Map</h2>
+              <p className="text-gray-400 text-sm leading-relaxed mb-4 max-w-2xl">
+                A six-part personalised curriculum — from field orientation and prerequisites all the way to the research frontier, deep intellectual themes, and the structural limits of the field. Choose how far you want to go.
+              </p>
+
+              {/* Depth options */}
+              <div className="flex flex-wrap gap-2 mb-5">
+                {[
+                  { label: "Foundation", sub: "Levels 0–2", highlight: false },
+                  { label: "Working Knowledge", sub: "Levels 0–3 · Debates", highlight: false },
+                  { label: "Research Depth", sub: "Levels 0–6 · Papers", highlight: false },
+                  { label: "Complete Mastery", sub: "All 6 parts", highlight: true },
+                ].map((opt) => (
+                  <div key={opt.label} className={`px-3 py-1.5 rounded-lg border text-xs flex items-center gap-2 ${
+                    opt.highlight
+                      ? "border-blue-600/50 bg-blue-900/20 text-blue-200"
+                      : "border-gray-700/50 text-gray-500"
+                  }`}>
+                    <span className="font-medium">{opt.label}</span>
+                    <span className={`text-[10px] ${opt.highlight ? "text-blue-400/60" : "text-gray-700"}`}>{opt.sub}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Three new pillars */}
+              <div className="grid grid-cols-3 gap-3 mb-4 max-w-2xl">
+                <div className="rounded-lg border border-blue-900/30 bg-blue-950/15 px-3 py-2.5">
+                  <p className="text-blue-300/70 text-[10px] font-semibold uppercase tracking-wide mb-1">The Great Debates</p>
+                  <p className="text-gray-500 text-[11px] leading-relaxed">4–6 live intellectual fault lines where serious practitioners still disagree — with the works representing each camp.</p>
+                </div>
+                <div className="rounded-lg border border-blue-900/30 bg-blue-950/15 px-3 py-2.5">
+                  <p className="text-blue-300/70 text-[10px] font-semibold uppercase tracking-wide mb-1">Capability Milestones</p>
+                  <p className="text-gray-500 text-[11px] leading-relaxed">After each level: exactly what you can now do, and a specific diagnostic test before you advance.</p>
+                </div>
+                <div className="rounded-lg border border-blue-900/30 bg-blue-950/15 px-3 py-2.5">
+                  <p className="text-blue-300/70 text-[10px] font-semibold uppercase tracking-wide mb-1">Tacit Knowledge</p>
+                  <p className="text-gray-500 text-[11px] leading-relaxed">What every expert in the field knows that no book or paper ever says out loud — the practitioner wisdom no curriculum captures.</p>
+                </div>
+              </div>
+
+              <p className="text-gray-600 text-xs">Available on every topic card below — click <span className="text-blue-400/60 font-medium">↗ Study Plan</span> on any field or topic to begin.</p>
+            </div>
+
             {/* ── Secondary features ── */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+            <div className="grid grid-cols-3 gap-3 mb-8">
               <div
                 className="rounded-xl border border-violet-800/40 bg-violet-950/30 hover:bg-violet-950/50 p-4 cursor-pointer transition-colors group"
                 onClick={() => setShowThematic(true)}
@@ -499,23 +549,13 @@ export default function Home() {
                 </p>
               </div>
 
-              <div className="rounded-xl border border-blue-800/40 bg-blue-950/30 p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-blue-400 text-base">↗</span>
-                  <p className="text-blue-200 text-sm font-semibold">Mastermind Study Plan</p>
-                </div>
-                <p className="text-gray-500 text-xs leading-relaxed">
-                  A 7-level curriculum for any topic — from absolute prerequisites to the research frontier. Every book and paper, what each teaches, what to read first. Available on any topic card below.
-                </p>
-              </div>
-
               <div className="rounded-xl border border-rose-800/40 bg-rose-950/15 p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-rose-500/80 text-base">⊙</span>
                   <p className="text-rose-200/80 text-sm font-semibold">The Horizon</p>
                 </div>
                 <p className="text-gray-500 text-xs leading-relaxed">
-                  Every field has a question it cannot answer using its own methods — always visible, never reachable. The structural limit, the hidden metaphor shaping everything, and every work that honestly confronts the edge.
+                  Every field has a question it cannot answer using its own methods — always visible, never reachable. The structural aporia, the hidden load-bearing metaphor, and every work that honestly confronts the edge.
                 </p>
               </div>
             </div>
