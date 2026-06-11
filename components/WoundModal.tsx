@@ -47,13 +47,21 @@ function renderWound(text: string, loading: boolean): React.ReactNode[] {
         </div>
       );
     } else if (line.startsWith("### ") && section === "works") {
-      const title = line.slice(4).trim();
+      const raw = line.slice(4).trim();
+      const langMatch = raw.match(/\s·\s([A-Za-zÀ-ÿ]+)$/);
+      const lang = langMatch ? langMatch[1] : null;
+      const title = lang ? raw.slice(0, -langMatch![0].length) : raw;
       const roman = ROMAN[workCount] ?? String(workCount + 1);
       workCount++;
       elements.push(
         <div key={`wh${i}`} className="flex items-start gap-4 mt-8 mb-2">
           <span className="text-rose-800/50 font-serif text-2xl leading-none flex-shrink-0 w-6 text-right mt-0.5 italic select-none">{roman}</span>
-          <h3 className="text-white font-semibold text-sm leading-snug pt-0.5">{title}</h3>
+          <div className="flex-1 pt-0.5">
+            <h3 className="text-white font-semibold text-sm leading-snug">{title}</h3>
+            {lang && (
+              <span className="inline-block mt-1 text-[10px] px-1.5 py-0.5 rounded bg-amber-900/30 border border-amber-800/30 text-amber-400/70">{lang}</span>
+            )}
+          </div>
         </div>
       );
     } else if (line.trim() === "") {

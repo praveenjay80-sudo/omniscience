@@ -61,13 +61,29 @@ One paragraph (160–200 words). Every field thinks with a root metaphor it rare
 
 ## THE WORKS
 
-List every significant work — books, papers, essays — that makes genuine progress toward confronting or understanding this wound. Include the full spectrum: accessible popular works that introduce the limit to non-specialists, philosophical explorations, landmark technical papers, historical accounts of how the wound was discovered, and the most rigorous honest confrontations. Do not cap the number — include all works that genuinely matter here, typically 8–15.
+Your sole selection criterion: which works get CLOSEST to actually answering, resolving, or dissolving the specific structural paradox described above? Not works chosen for prestige, citation count, or canonical status in the field. Only works that make genuine intellectual progress toward the horizon itself.
+
+Include works regardless of era (ancient, medieval, early modern, contemporary), language (include German, French, Arabic, Sanskrit, Chinese, Latin originals by their original title with translation), subject area (works from adjacent or completely different fields that happen to approach the same underlying structure), or difficulty level. If a dialogue written in 350 BCE gets closer to answering this paradox than a 2010 paper, include the dialogue. If the most important work was written in German and never translated, include it.
+
+Types of works that belong here:
+— Works that directly attack the paradox and make partial progress toward resolving it
+— Works that reframe the problem so that new progress becomes possible
+— Works that prove or precisely characterize WHY this is a structural limit (which is itself a form of resolution)
+— Works from entirely different traditions or fields that approach the same underlying structure from an unexpected angle
+— Works that propose to DISSOLVE the paradox by questioning its framing — serious attempts even if ultimately unsuccessful
+— Works that construct partial solutions, approximations, or workarounds that reveal something true about the limit's structure
+
+Do not include a work merely because it is famous or foundational in the field if it does not specifically advance toward this horizon.
 
 For each work use this exact format:
-### [Exact Title] — [Author(s)] ([Year])
-Two paragraphs (150–180 words). First paragraph: what does this work actually say, in plain language — explain the core argument as if to someone who will never read it, with at least one concrete example of what it claims or demonstrates. Second paragraph: how does it relate to the wound — how close does it get, what does it honestly confront, what does it still leave unresolved, and why does it belong in this list rather than the ordinary canon.
+### [Exact Title] — [Author(s)] ([Year]) · [Language if not English]
+Two paragraphs (160–200 words total).
 
-Prose only in body paragraphs. No bullet lists. Write with genuine intellectual care — these explanations should make a beginner feel they have grasped something real.`;
+First paragraph: What does this work claim or demonstrate, in completely plain language? Give one specific, concrete example — a particular argument, theorem, thought experiment, or claim — that shows exactly how it engages with the paradox. Write as if explaining to someone who will never read the work.
+
+Second paragraph: How close does it actually get? Be honest and precise. What exactly does it resolve or illuminate, and where does the horizon remain untouched? Name the specific move it makes: does it partially dissolve the paradox, reframe it productively, prove its structural necessity, construct a partial bypass, or approach from a tradition that makes unexpected progress? End with one sentence: what would still need to happen for this work's approach to fully cross the horizon.
+
+Include all works that genuinely advance toward this horizon — typically 8–15 but include more if the horizon has attracted serious treatment across multiple traditions. Prose only in body paragraphs. No bullet lists.`;
   }
 
   const encoder = new TextEncoder();
