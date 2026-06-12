@@ -11,6 +11,8 @@ export async function POST(req: NextRequest) {
     l2,
     insertTitle,
     existingChain,
+    fieldMap,
+    subtopicOf,
   } = await req.json();
 
   if (!apiKey) return new Response("apiKey is required", { status: 400 });
@@ -49,6 +51,37 @@ Then write the reading chain entry for "${insertTitle}" in the standard format:
 **Requires:** [What the reader needs before this — one sentence pointing to specific prerequisites or the previous work in the chain]
 **Contributes:** [What the reader gains — the specific capability, insight, or framework this work provides — one sentence]
 **Enables:** [What this prepares the reader for next — one sentence]`;
+  } else if (fieldMap && subtopicOf) {
+    prompt = `Build a reading chain for someone studying "${term}" as part of mastering "${subtopicOf}" (${fieldPath}).
+
+A reading chain is a strict linear sequence where each work builds directly on the one before it. Every step must genuinely require the previous step — this is not a reading list, it is a dependency chain. The reader who finishes work N is exactly ready for work N+1 and not before.
+
+Selection criteria:
+— Choose works that are genuinely the best next step at each point, regardless of fame, era, or language
+— Include primary sources, textbooks, papers, and essays as appropriate to the actual learning sequence
+— Include works from other fields if they provide the most direct path to understanding "${term}"
+— Include works in original languages if they are the genuine best step (note the language)
+— Include every work that is a genuine necessary step; do not cap the list. A deep sub-topic may need 15+ entries; a narrow one may need 5. Let the subject determine the length, not an arbitrary limit.
+
+For each work use this exact format:
+
+### [Exact Title] — [Author(s)] ([Year])
+[Language tag on same line if not English, e.g. · German]
+
+**Tags:** [PRIORITY] · [SCOPE] · [LEVEL] · [TYPE]
+**Requires:** [What the reader needs before this work — one sentence; first work: "Starting point — no prerequisites needed" or name the minimal background]
+**Contributes:** [The specific capability, framework, or insight this work gives — one sentence; be precise, not generic]
+**Enables:** [What the reader can now do or read that they couldn't before — one sentence; last work: "Chain complete — [what mastery of ${term} looks like]"]
+
+Tag rules — use exactly one value from each category, separated by ·:
+PRIORITY: CORE (every serious student must read it; irreplaceable) | ESSENTIAL (very important; most should not skip) | OPTIONAL (valuable supplement for those with specific interest)
+SCOPE: SHARED (foundational to multiple areas of "${subtopicOf}", not just "${term}" — a general reference used across several sub-topics) | SPECIFIC (primarily relevant to "${term}" specifically)
+LEVEL: Introductory | Undergraduate | Graduate | Research
+TYPE: Textbook | Monograph | Paper | Classic | Problems
+
+Separate each entry with a line containing only three dashes: ---
+
+Do not number the works. Do not add commentary outside the entry format. The chain should speak for itself.`;
   } else {
     prompt = `Build a reading chain for someone who wants to develop genuine mastery of "${term}" (${fieldPath}).
 

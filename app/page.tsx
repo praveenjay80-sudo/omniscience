@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { TAXONOMY_SEED } from "@/lib/taxonomy-seed";
+import { OPENALEX_TAXONOMY, getSubfields, getTopics } from "@/lib/taxonomy-openalex";
 import { VerifyStatus, verifyAll } from "@/lib/wikipedia";
 import SearchLinks from "@/components/SearchLinks";
 import ExplainModal from "@/components/ExplainModal";
@@ -14,6 +14,7 @@ import UniversalMapModal from "@/components/UniversalMapModal";
 import WoundModal from "@/components/WoundModal";
 import DecoderModal from "@/components/DecoderModal";
 import ReadingChainModal from "@/components/ReadingChainModal";
+import FieldMapModal from "@/components/FieldMapModal";
 
 type Phase = "pick-domain" | "pick-l1" | "pick-l2" | "view-l3";
 
@@ -22,6 +23,7 @@ interface LearningPathTarget { term: string; l2?: string; }
 interface DiscoverTarget { term: string; l2?: string; }
 interface WoundTarget { term: string; l2?: string; }
 interface ChainTarget { term: string; domain: string; l1: string; l2?: string; insertTitle?: string; }
+interface FieldMapTarget { term: string; domain: string; l1: string; l2?: string; }
 
 function cacheKey(domain: string, l1: string, l2?: string) {
   return l2 ? `omni_l3::${domain}::${l1}::${l2}` : `omni_l2::${domain}::${l1}`;
@@ -89,6 +91,7 @@ export default function Home() {
   const [woundTarget, setWoundTarget] = useState<WoundTarget | null>(null);
   const [showDecoder, setShowDecoder] = useState(false);
   const [chainTarget, setChainTarget] = useState<ChainTarget | null>(null);
+  const [fieldMapTarget, setFieldMapTarget] = useState<FieldMapTarget | null>(null);
   const [showThematic, setShowThematic] = useState(false);
   const [showGreatQuestions, setShowGreatQuestions] = useState(false);
   const [showUniversalMap, setShowUniversalMap] = useState(false);
@@ -244,7 +247,9 @@ export default function Home() {
     setError(""); resetVerify();
     setLoading(false);
     setPhase("pick-l2");
-    expand(selectedDomain, l1);
+    const subfields = getSubfields(selectedDomain, l1);
+    setL2List(subfields);
+    loadCachedVerify(subfields);
   };
 
   const pickL2 = (l2: string) => {
@@ -254,7 +259,13 @@ export default function Home() {
     setError(""); resetVerify();
     setLoading(false);
     setPhase("view-l3");
-    expand(selectedDomain, selectedL1, l2);
+    const topics = getTopics(selectedDomain, selectedL1, l2);
+    if (topics.length > 0) {
+      setL3List(topics);
+      loadCachedVerify(topics);
+    } else {
+      expand(selectedDomain, selectedL1, l2);
+    }
   };
 
   const goTo = (p: Phase) => {
@@ -270,7 +281,7 @@ export default function Home() {
     if (p === "pick-l2") { setSelectedL2(""); setL3List([]); }
   };
 
-  const seed = TAXONOMY_SEED.find((s) => s.domain === selectedDomain);
+  const domainEntry = OPENALEX_TAXONOMY.find((d) => d.name === selectedDomain);
 
   const activeList = phase === "pick-l2" ? l2List : l3List;
   const unverifiedCount = activeList.filter((t) => !verifyMap[t]).length;
@@ -378,7 +389,8 @@ export default function Home() {
                   k.startsWith("omni_discover::") ||
                   k.startsWith("omni_wound::") ||
                   k.startsWith("omni_decoder::") ||
-                  k.startsWith("omni_chain::")
+                  k.startsWith("omni_chain::") ||
+                  k.startsWith("omni_fieldmap_")
               );
               keys.forEach((k) => localStorage.removeItem(k));
               setDifficultyMap({});
@@ -587,6 +599,67 @@ export default function Home() {
               <p className="text-gray-700 text-xs">Decode a paper to auto-place it in the chain — the two tools connect. <span className="text-gray-600">The Decoder places your paper; the Chain shows the full journey it fits into.</span></p>
             </div>
 
+            {/* ── Field Map Featured Card ── */}
+            <div className="mb-5 rounded-2xl border border-teal-800/40 bg-gradient-to-br from-teal-950/40 via-gray-900 to-gray-950 p-6">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-teal-400 text-lg">⊞</span>
+                <span className="text-[11px] text-teal-400/70 uppercase tracking-widest font-medium">Field Map</span>
+                <span className="text-[9px] bg-teal-900/40 text-teal-300 border border-teal-700/40 rounded px-1.5 py-0.5 font-semibold ml-1">New ✦</span>
+              </div>
+              <h2 className="text-xl font-bold text-white mb-1.5">Complete Vertical Decomposition</h2>
+              <p className="text-gray-400 text-sm leading-relaxed mb-5 max-w-2xl">
+                Every subfield has sub-concepts. Field Map generates all of them — then builds a precise reading chain for each one. Not one path through a field: the full map of every path, with every work at every level.
+              </p>
+
+              {/* Example decomposition */}
+              <div className="mb-5 max-w-2xl">
+                <div className="rounded-xl border border-teal-900/30 bg-teal-950/15 px-4 py-3.5">
+                  <p className="text-[10px] text-teal-500/60 uppercase tracking-widest font-semibold mb-3">Example — Abstract Algebra</p>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-1.5">
+                    {[
+                      ["Group Theory", "8 works"],
+                      ["Ring Theory", "7 works"],
+                      ["Field Theory", "6 works"],
+                      ["Module Theory", "7 works"],
+                      ["Galois Theory", "8 works"],
+                      ["Category Theory", "9 works"],
+                      ["Homological Algebra", "8 works"],
+                      ["Representation Theory", "9 works"],
+                    ].map(([name, count]) => (
+                      <div key={name} className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="text-teal-700 text-[9px]">▸</span>
+                          <span className="text-gray-300 text-[11px]">{name}</span>
+                        </div>
+                        <span className="text-gray-700 text-[10px] font-mono">{count}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-gray-700 text-[10px] mt-3 pt-2 border-t border-teal-900/20">
+                    8 reading chains · ~62 works total · streams each chain sequentially
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-4 max-w-2xl">
+                <div className="flex-1 space-y-1.5">
+                  {[
+                    "Sub-concepts generated in prerequisite order",
+                    "Each chain: full Requires → Contributes → Enables per work",
+                    "Chains cached — revisit any topic instantly",
+                    "Place any paper into any sub-chain via ⬦ Chain",
+                  ].map((item) => (
+                    <div key={item} className="flex items-start gap-2">
+                      <span className="text-teal-700 mt-0.5 flex-shrink-0 text-[10px]">—</span>
+                      <p className="text-[11px] text-gray-500">{item}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <p className="text-gray-700 text-xs mt-4">Available on every topic card below — click <span className="text-teal-500/60 font-medium">⊞ Field Map</span> on any subfield or topic.</p>
+            </div>
+
             {/* ── Secondary features ── */}
             <div className="grid grid-cols-3 gap-3 mb-8">
               <div
@@ -630,7 +703,7 @@ export default function Home() {
             <div className="mb-4 flex items-baseline justify-between">
               <div>
                 <h3 className="text-sm font-semibold text-white">Browse the Taxonomy</h3>
-                <p className="text-gray-600 text-xs mt-0.5">Navigate Domain → Field → Branch → Topic. Everything generated on demand by Claude.</p>
+                <p className="text-gray-600 text-xs mt-0.5">OpenAlex academic taxonomy — Domain → Field → Subfield → Topic. Topics are static; AI features run on any topic.</p>
               </div>
               <div className="flex items-center gap-3 text-[11px] text-gray-600">
                 <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-yellow-500 inline-block" /> Explain Me</span>
@@ -638,12 +711,12 @@ export default function Home() {
                 <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-500 inline-block" /> Wikipedia verify</span>
               </div>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2.5">
-              {TAXONOMY_SEED.map((s) => (
-                <button key={s.domain} onClick={() => pickDomain(s.domain)}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              {OPENALEX_TAXONOMY.map((d) => (
+                <button key={d.name} onClick={() => pickDomain(d.name)}
                   className="bg-gray-900 hover:bg-gray-800 border border-gray-800 hover:border-gray-600 rounded-xl p-4 text-left transition-all group">
-                  <p className="font-semibold text-gray-200 group-hover:text-white transition-colors text-sm">{s.domain}</p>
-                  <p className="text-xs text-gray-600 mt-1">{s.l1.length} fields</p>
+                  <p className="font-semibold text-gray-200 group-hover:text-white transition-colors text-sm">{d.name}</p>
+                  <p className="text-xs text-gray-600 mt-1">{d.fields.length} fields</p>
                 </button>
               ))}
             </div>
@@ -651,15 +724,16 @@ export default function Home() {
         )}
 
         {/* PHASE: pick-l1 */}
-        {phase === "pick-l1" && seed && (
+        {phase === "pick-l1" && domainEntry && (
           <div>
             <h2 className="text-2xl font-bold text-white mb-1">{selectedDomain}</h2>
-            <p className="text-gray-500 text-sm mb-6">Pick a field — Claude will generate its subfields (L2).</p>
+            <p className="text-gray-500 text-sm mb-6">Pick a field — select a subfield to explore its topics.</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              {seed.l1.map((l1) => (
-                <button key={l1} onClick={() => pickL1(l1)}
+              {domainEntry.fields.map((f) => (
+                <button key={f.name} onClick={() => pickL1(f.name)}
                   className="bg-gray-900 hover:bg-gray-800 border border-gray-700 hover:border-purple-500 rounded-xl p-4 text-left transition-all group">
-                  <p className="font-semibold text-blue-300 group-hover:text-purple-300 transition-colors">{l1}</p>
+                  <p className="font-semibold text-blue-300 group-hover:text-purple-300 transition-colors">{f.name}</p>
+                  <p className="text-xs text-gray-600 mt-1">{f.subfields.length} subfields</p>
                 </button>
               ))}
             </div>
@@ -683,7 +757,7 @@ export default function Home() {
                 />
               )}
             </div>
-            <p className="text-gray-500 text-sm mb-6">Pick a subfield — Claude will generate its topics (L3).</p>
+            <p className="text-gray-500 text-sm mb-6">Pick a subfield — topics are pre-loaded from the OpenAlex taxonomy.</p>
             {!loading && l2List.length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {l2List.map((l2) => (
@@ -732,6 +806,10 @@ export default function Home() {
                         className="text-xs bg-indigo-950/30 hover:bg-indigo-900/50 text-indigo-400/70 hover:text-indigo-300 px-2.5 py-1 rounded-lg transition-colors border border-indigo-900/40 hover:border-indigo-700/60">
                         ⬦ Chain
                       </button>
+                      <button onClick={() => setFieldMapTarget({ term: l2, domain: selectedDomain, l1: selectedL1 })}
+                        className="text-xs bg-teal-950/30 hover:bg-teal-900/40 text-teal-500/70 hover:text-teal-300 px-2.5 py-1 rounded-lg transition-colors border border-teal-900/40 hover:border-teal-700/60">
+                        ⊞ Field Map
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -759,7 +837,7 @@ export default function Home() {
               )}
             </div>
             <p className="text-gray-500 text-sm mb-6">
-              Topics in <span className="text-purple-400">{selectedL1}</span> › <span className="text-blue-400">{selectedDomain}</span>
+              <span className="text-purple-400">{selectedL2}</span> · subfield of <span className="text-blue-300">{selectedL1}</span> · <span className="text-gray-600">{selectedDomain}</span>
             </p>
             {!loading && l3List.length > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -806,6 +884,10 @@ export default function Home() {
                       <button onClick={() => setChainTarget({ term: l3, domain: selectedDomain, l1: selectedL1, l2: selectedL2 })}
                         className="text-xs bg-indigo-950/30 hover:bg-indigo-900/50 text-indigo-400/70 hover:text-indigo-300 px-2.5 py-1 rounded-lg transition-colors border border-indigo-900/40 hover:border-indigo-700/60">
                         ⬦ Chain
+                      </button>
+                      <button onClick={() => setFieldMapTarget({ term: l3, domain: selectedDomain, l1: selectedL1, l2: selectedL2 })}
+                        className="text-xs bg-teal-950/30 hover:bg-teal-900/40 text-teal-500/70 hover:text-teal-300 px-2.5 py-1 rounded-lg transition-colors border border-teal-900/40 hover:border-teal-700/60">
+                        ⊞ Field Map
                       </button>
                     </div>
                   </div>
@@ -887,6 +969,16 @@ export default function Home() {
           apiKey={apiKey}
           insertTitle={chainTarget.insertTitle}
           onClose={() => setChainTarget(null)}
+        />
+      )}
+      {fieldMapTarget && (
+        <FieldMapModal
+          term={fieldMapTarget.term}
+          domain={fieldMapTarget.domain}
+          l1={fieldMapTarget.l1}
+          l2={fieldMapTarget.l2}
+          apiKey={apiKey}
+          onClose={() => setFieldMapTarget(null)}
         />
       )}
     </div>

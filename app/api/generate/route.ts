@@ -13,16 +13,24 @@ export async function POST(req: NextRequest) {
   const isL3 = !!l2;
 
   const prompt = isL3
-    ? `You are an academic taxonomist. List the specific subfields and named areas within "${l2}" (which is a broad branch of "${l1}", domain "${domain}").
+    ? `You are an academic taxonomist. List the named subfields within "${l2}" (a broad branch of "${l1}", domain "${domain}").
 
-The hierarchy is: Domain → L1 → L2 (broad branch) → L3 (specific subfields within that branch).
+The hierarchy is: Domain → L1 → L2 (broad branch) → L3 (named subfields) → [L4: sub-concepts within each subfield].
 
-Example of correct L3 items:
-- For L2 "Algebra" → L3: "Abstract Algebra", "Linear Algebra", "Commutative Algebra", "Homological Algebra", "Universal Algebra", "Lie Algebras", "Group Theory", "Ring Theory", "Field Theory", "Galois Theory"
-- For L2 "Analysis" → L3: "Real Analysis", "Complex Analysis", "Functional Analysis", "Harmonic Analysis", "Numerical Analysis", "Measure Theory", "Fourier Analysis"
-- For L2 "Geometry" → L3: "Euclidean Geometry", "Differential Geometry", "Algebraic Geometry", "Projective Geometry", "Riemannian Geometry", "Topology"
+L3 items must be NAMED SUBFIELDS — areas large enough to be an undergraduate or graduate course, each containing many specific techniques, theorems, and sub-concepts.
 
-Now list all the specific subfields/named areas within "${l2}". Be exhaustive.
+Examples of correct L3 granularity:
+- L2 "Algebra" → L3: "Abstract Algebra", "Linear Algebra", "Commutative Algebra", "Homological Algebra", "Universal Algebra", "Lie Theory", "Algebraic K-Theory", "Representation Theory"
+- L2 "Abstract Algebra" → L3: "Group Theory", "Ring Theory", "Field Theory", "Module Theory", "Galois Theory", "Category Theory"
+- L2 "Analysis" → L3: "Real Analysis", "Complex Analysis", "Functional Analysis", "Harmonic Analysis", "Measure Theory", "Fourier Analysis", "Operator Theory"
+- L2 "Geometry" → L3: "Differential Geometry", "Algebraic Geometry", "Riemannian Geometry", "Symplectic Geometry", "Convex Geometry", "Discrete Geometry"
+- L2 "Group Theory" → L3: "Finite Group Theory", "Infinite Group Theory", "Geometric Group Theory", "Lie Groups", "Algebraic Groups", "Permutation Groups"
+
+DO NOT list sub-concepts, specific theorems, or techniques (those belong at L4):
+- WRONG for L2 "Abstract Algebra": "Sylow Theorems", "Galois Extensions", "Jordan-Hölder Theorem", "Noetherian Rings"
+- WRONG for L2 "Algebra": "Group Theory", "Ring Theory", "Galois Theory" (those are L3 of "Abstract Algebra", not L3 of "Algebra")
+
+List all named subfields within "${l2}". Be exhaustive — include every genuine subfield.
 Return ONLY a raw JSON array of strings. No markdown, no explanation, no code fences.
 
 ["Subfield 1","Subfield 2",...]`

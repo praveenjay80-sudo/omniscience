@@ -5,10 +5,10 @@
 Omniscience is a **Next.js academic knowledge taxonomy browser**. It lets users navigate all fields of human knowledge through a 4-level hierarchy:
 
 ```
-Domain → L1 (field) → L2 (broad branches) → L3 (specific subfields)
+Domain → Field → Subfield → Topic
 ```
 
-**Domains and L1 are prefilled** (hardcoded seed data). **L2 and L3 are generated on-demand** by Claude via the Anthropic API — only when the user picks a field. Nothing is preloaded.
+**The entire taxonomy is static** from the OpenAlex academic database (`lib/taxonomy-openalex.ts`): 4 domains → 27 fields → 247 subfields → 1,837 curated learnable topics. OpenAlex itself has 4,516 "topics" but these are research literature citation clusters (e.g., "Cynara cardunculus studies"); ours are student-facing named topics. **AI features run on any selected topic** (Study Plan, Reading Chain, Decoder, etc.) but no AI is used to populate the navigation list itself.
 
 The user provides their own Anthropic API key (BYOK), stored in `localStorage` only — never sent to a server except as a passthrough to the Anthropic API.
 
@@ -37,7 +37,8 @@ The user provides their own Anthropic API key (BYOK), stored in `localStorage` o
 
 | File | Purpose |
 |------|---------|
-| `lib/taxonomy-seed.ts` | 13 prefilled domains with L1 arrays |
+| `lib/taxonomy-openalex.ts` | OpenAlex static taxonomy: 4 domains → 27 fields → 247 subfields → 1,837 curated topics (OpenAlex has 4,516 but those are literature citation clusters; ours are student-facing learnable topics) |
+| `lib/taxonomy-seed.ts` | Legacy 13-domain seed (no longer used for navigation) |
 | `lib/searchUrls.ts` | 7 academic search link definitions |
 | `lib/wikipedia.ts` | Wikipedia verification (batch, cached) |
 | `app/page.tsx` | Main component — all navigation state lives here |
@@ -49,6 +50,8 @@ The user provides their own Anthropic API key (BYOK), stored in `localStorage` o
 | `app/api/discover/route.ts` | All Discover features — dispatches by `feature` param |
 | `app/api/decoder/route.ts` | Streams 6-section paper/book decoder (placement, prereqs, context) |
 | `app/api/readingchain/route.ts` | Streams reading chain (generate or insert mode) |
+| `app/api/fieldmap/route.ts` | Streams L4 sub-concept list for a given L3 term (JSON array) |
+| `components/FieldMapModal.tsx` | Field Map modal — sequential per-subtopic chains with accordion UI |
 | `components/SearchLinks.tsx` | Row of 7 academic search buttons |
 | `components/VerifyBadge.tsx` | Wikipedia status badge (✓ / ? / ✗) |
 | `components/ExplainModal.tsx` | Streaming explanation modal |
@@ -132,6 +135,8 @@ return new Response(stream, {
 | `omni_plan::domain::l1::l2::term::hours::background::goal::learningStyle::depth` | Full study plan markdown (up to 6 parts, cached per depth) |
 | `omni_decoder::${normalizedTitle}` | Decoder result for a paper/book (title normalized to lowercase_underscore) |
 | `omni_chain::domain::l1::l2::term` | Reading chain markdown for a topic |
+| `omni_fieldmap_sub::domain::l1::l2::term` | Field Map sub-topic list (JSON array of strings) |
+| `omni_fieldmap_chain::domain::l1::l2::term::subtopic` | Reading chain markdown for one Field Map sub-topic |
 | `omni_discover::domain::l1::l2::term::feature` | Discover modal result |
 | `omni_discover::domain::l1::l2::term::feature::param` | Discover result (param features) |
 | `omni_bookmarks` | JSON array of bookmarked topic strings |
@@ -142,7 +147,7 @@ return new Response(stream, {
 | `omni_universalquestions` | Grand Questions markdown |
 | `omni_theoreticalminimum` | Theoretical Minimum markdown |
 
-The **Reset Cache** button clears all `omni_l2::`, `omni_l3::`, `omni_wiki::`, `omni_prereq::`, `omni_plan::`, `omni_discover::`, `omni_wound::`, `omni_decoder::`, `omni_chain::` keys.
+The **Reset Cache** button clears all `omni_l2::`, `omni_l3::`, `omni_wiki::`, `omni_prereq::`, `omni_plan::`, `omni_discover::`, `omni_wound::`, `omni_decoder::`, `omni_chain::`, `omni_fieldmap_` keys.
 
 ---
 
@@ -220,6 +225,15 @@ Body: `{ apiKey, term, domain, l1, l2?, mode, insertTitle?, existingChain? }`
 - Entry format: `### Title — Author(s) (Year)` + optional `· Language` + `**Requires:**` + `**Contributes:**` + `**Enables:**`; entries separated by `\n---\n`
 - `max_tokens: 8192`
 
+### `POST /api/fieldmap`
+Body: `{ apiKey, term, domain, l1, l2? }`
+- Generates L4 sub-concepts for a given L3 term as a JSON array of strings
+- Items are ordered in prerequisite sequence (foundational before advanced)
+- Prompt explicitly defines L4 as "one level MORE specific than `term`" with calibrated examples
+- `max_tokens: 1024` — only needs a short list
+- **Used by FieldMapModal**: the modal calls this once for the sub-topic list, then calls `/api/readingchain` once per sub-topic (`mode: "generate"`, with `term = subtopic`, `l2 = parent term`)
+- **L3 granularity fix (2026-06-12):** `/api/generate` L3 prompt was also updated — examples now forbid promoting L4 items (Group Theory, Ring Theory) to L3 of a shallower L2 (Algebra). Reset `omni_l3::` cache to see corrected L3 lists.
+
 ---
 
 ## LearningPathModal — Study Plan Tab (Mastery Map)
@@ -276,8 +290,8 @@ for (let p = 1; p <= limit; p++) {
 ## Feature List (current)
 
 ### Taxonomy Browser
-1. **Taxonomy browser** — Domain → L1 → L2 → L3 navigation
-2. **On-demand generation** — L2/L3 generated by Claude, cached in localStorage
+1. **Taxonomy browser** — Domain → Field → Subfield → Topic navigation (fully static; 4 OpenAlex domains, 27 fields, 247 subfields, 1,837 curated learnable topics)
+2. **Static taxonomy** — No AI used to populate navigation; topics load instantly with no API key required
 3. **7 academic search links** per card — Scholar, Semantic Scholar ↑cited, OpenAlex ↑cited, CORE, Inciteful, Talpa Books, WorldCat ↑loaned
 4. **Explain Me** — streaming beginner explanation modal
 5. **Wikipedia verification** — batch badges (✓/✗/?), batches of 6 with 150ms pause
@@ -302,6 +316,7 @@ for (let p = 1; p <= limit; p++) {
 17. **⊙ The Horizon** (WoundModal) — structural limit of any field: Central Aporia + Load-Bearing Metaphor + Works from any era/language. Button on every L2/L3 card. Cache: `omni_wound::`.
 18. **⬡ The Decoder** (DecoderModal) — paste any paper/book title + optional abstract → 6-section analysis: placement, prereqs, context, what it opened, readiness check. "View Reading Chain →" button auto-places paper in chain. Cache: `omni_decoder::`.
 19. **⬦ Reading Chain** (ReadingChainModal) — linear reading spine from first contact to mastery, no length cap. "Place a paper" input to find where any work fits (amber-highlighted card). Auto-placement if opened from Decoder. Cache: `omni_chain::`. Button on every L2/L3 card.
+20. **⊞ Field Map** (FieldMapModal) — complete vertical decomposition of any topic: generates all L4 sub-concepts in prerequisite order, then streams a full reading chain for each one sequentially. Accordion UI: auto-expands active chain, collapses completed ones. Compact row view (title + contributes). Cache: `omni_fieldmap_sub::` (sub-topic list) + `omni_fieldmap_chain::` (per-subtopic chains). Button on every L2/L3 card. L3 generation prompt also corrected (2026-06-12) to prevent L4-level items appearing in L3 taxonomy.
 
 ---
 
